@@ -3,9 +3,9 @@ import os
 import re
 import chromedriver_binary
 from logzero import logger
-from urllib.parse import quote
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from urllib.parse import quote
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 from my_exception import NonWikipediaLink, ElementNotFound, CannotOpenURL, NoDateColumn
