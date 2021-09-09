@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+venv/
+wiki_page_html/
+*.csv
+*.log
