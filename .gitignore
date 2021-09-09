@@ -2,5 +2,6 @@
 __pycache__/
 venv/
 wiki_page_html/
+*.json
 *.csv
 *.log
