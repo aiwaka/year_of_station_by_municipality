@@ -145,7 +145,7 @@ class Crawler:
             except NoDateColumn as e:
                 logger.error(f"{e}")
 
-        max_year_name = max(years_data)
+        max_year_name = max(years_data, key=years_data.get)
 
         return max_year_name, years_data[max_year_name]
 
