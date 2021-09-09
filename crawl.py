@@ -147,8 +147,14 @@ class Crawler:
                 logger.error(f"{e}")
 
         max_year_name = max(years_data, key=years_data.get)
+        min_year_name = min(years_data, key=years_data.get)
 
-        return max_year_name, years_data[max_year_name]
+        return (
+            max_year_name,
+            years_data[max_year_name],
+            min_year_name,
+            years_data[min_year_name],
+        )
 
 
 # # resultを使ってcsv出力
