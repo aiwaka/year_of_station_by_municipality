@@ -23,8 +23,8 @@ def load_csv(filepath):
 
 
 def main():
-    data = load_csv("日本市町村人口.csv")
-    test = crawler.get_year_data(data[0])
+    man_list = load_csv("日本市町村人口.csv")
+    test = crawler.get_year_data(man_list[0])
     print(test)
     crawler.close_browser()
 

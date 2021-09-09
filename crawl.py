@@ -99,7 +99,7 @@ class Crawler:
         try:
             with urlopen(sta_link) as response:
                 html = response.read()
-                time.sleep(2.5)
+                time.sleep(3)
         except Exception as e:
             print(e)
             raise CannotOpenURL(f"cannot open URL : {sta_link} ({sta_name})")
@@ -120,7 +120,8 @@ class Crawler:
             for row in row_tags
         ]
         # 最大の数字を返す.
-        return max(years)
+        # ->ここは最小にしておく（最近別枠ができることは少ないだろうので）
+        return min(years)
 
     def get_year_data(self, man_name):
         # manicipalityの名前からスクレイピングして最も新しい駅の設置年をとってくる.
