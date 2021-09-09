@@ -1,7 +1,7 @@
 import time
 import os
 import re
-import chromedriver_binary
+import chromedriver_binary  # noqa: F401
 from logzero import logger
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
