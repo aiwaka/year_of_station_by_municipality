@@ -95,6 +95,7 @@ class Crawler:
     def get_opening_date(self, sta_name, sta_link):
         # 生成した辞書を使ってその駅が開業した年月を引っ張ってくる.
         print(sta_name + " fetching...")
+        # URLを開く
         try:
             with urlopen(sta_link) as response:
                 html = response.read()
@@ -104,9 +105,11 @@ class Crawler:
             raise CannotOpenURL(f"cannot open URL : {sta_link} ({sta_name})")
 
         soup = BeautifulSoup(html, "html.parser")
+        # 開業年月日というテキストを持つthタグの隣のタグを持ってくる.
         row_tags = soup.select("th:-soup-contains('開業年月日')")
         if row_tags is []:
             raise NoDateColumn(f"at {sta_link} ({sta_name})")
+        # 正規表現で年を抜き出して整数にしてリストに格納
         year_pattern = re.compile(r"([0-9]{4})年")
         years = [
             int(
@@ -116,7 +119,8 @@ class Crawler:
             )
             for row in row_tags
         ]
-        return min(years)
+        # 最大の数字を返す.
+        return max(years)
 
     def get_year_data(self, man_name):
         # manicipalityの名前からスクレイピングして最も新しい駅の設置年をとってくる.
@@ -141,9 +145,9 @@ class Crawler:
             except NoDateColumn as e:
                 logger.error(f"{e}")
 
-        min_year_name = min(years_data)
+        max_year_name = max(years_data)
 
-        return min_year_name, years_data[min_year_name]
+        return max_year_name, years_data[max_year_name]
 
 
 # # resultを使ってcsv出力
