@@ -1,6 +1,5 @@
-import time
-import os
 import re
+from time import sleep
 import chromedriver_binary  # noqa: F401
 from logzero import logger
 from selenium import webdriver
@@ -9,15 +8,22 @@ from urllib.parse import quote
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 from my_exception import NonWikipediaLink, ElementNotFound, CannotOpenURL, NoDateColumn
+from filemanager import DataFilesIO
 
 
 class Crawler:
+    def __init__(self, file_manager: DataFilesIO):
+        self.file_manager = file_manager
+        # 優先データを辞書として持っておく.
+        # URLが見つけられない場合のURLや, データが誤りのときのデータなどを手動で書いておく.
+        self.priority_data = file_manager.load_priority_data()
+
     def open_browser(self):
         # ブラウザーを起動. すでに起動しているならなにもしない.
         if not hasattr(self, "driver"):
             options = Options()
-            options.add_argument("--headless")
-            options.add_argument("incognito")
+            options.add_argument("--headless")  # ヘッドレスモード
+            # options.add_argument("incognito")  # シークレットモード
             self.driver = webdriver.Chrome(options=options)
 
     def close_browser(self):
@@ -28,8 +34,9 @@ class Crawler:
 
     def get_wiki_link(self, man_name):
         # seleniumでchromeを操作して検索結果のリンクを取ってくる
+        # 与えられた自治体名 + wikipediaで検索する.
         self.driver.get(f"https://www.google.com/search?q={quote(man_name)}+wikipedia")
-        time.sleep(2)  # 待機
+        sleep(2)  # 待機
         # 検索結果のブロックはgクラスがつけられている.
         search_result = self.driver.find_elements_by_css_selector(".g > div > div")
         link = search_result[0].find_element_by_tag_name("a").get_attribute("href")
@@ -39,15 +46,26 @@ class Crawler:
         # 自治体名からwikipediaのhtmlを返す.
         # 一度ウェブから取ったら保存するようにして時間とトラフィック削減
         FILE_PATH = f"./wiki_page_html/{man_name}.html"
-        if not os.path.exists(FILE_PATH):
+
+        html = self.file_manager.load_local_html(FILE_PATH)
+        if html is None:
             # ソースのhtmlが存在しなければ取ってきて保存し, あるならそれを使う.
             self.open_browser()
             link = self.get_wiki_link(man_name)
             if "ja.wikipedia.org" not in link:
-                raise NonWikipediaLink(link + " [" + man_name + "]")
+                # wikipediaのサイトではなかったら, 上書きページを見に行く.
+                # エラーを見つけたら手動で追加する.
+                if (
+                    man_name in self.priority_data
+                    and "url" in self.priority_data[man_name]
+                ):
+                    link = self.priority_data[man_name]["url"]
+                else:
+                    # それでもみつからなかったら例外を送る
+                    raise NonWikipediaLink(link + " [" + man_name + "]")
             logger.info(f"{man_name} : source not exists. fetching from {link}")
             self.driver.get(link)
-            time.sleep(1)
+            sleep(1)
             # ヘッダーがやたら長くて邪魔なので除去してからhtmlソースとする.
             html = self.driver.page_source
             soup = BeautifulSoup(html, "html.parser")
@@ -56,9 +74,7 @@ class Crawler:
                 f.write(str(soup))
             logger.info(f"saved as {man_name}.html")
         else:
-            with open(FILE_PATH) as f:
-                logger.info(f"{man_name} is found.")
-                html = f.read()
+            logger.info(f"{man_name} is found.")
         return html
 
     def get_station_links(self, man_name) -> list:
@@ -82,24 +98,26 @@ class Crawler:
             next_tag = next_tag.find_next_sibling()
 
         result_dict = {}
-        pattern = re.compile(r"(駅|停留場|停留所)$")
+        pattern = re.compile(r"(?<!臨時|請願)(駅|停留所)$")
         for block in railroad_blocks:
             link_list = block.select("li > a")
+            if link_list is []:
+                raise ElementNotFound(man_name + " (<li> or <a> tag not found)")
             for link in link_list:
                 name = link.get_text()
                 if pattern.search(name) is not None and name not in result_dict:
                     result_dict[name] = link.attrs["href"]
 
+        print(result_dict)
         return result_dict
 
     def get_opening_date(self, sta_name, sta_link):
         # 生成した辞書を使ってその駅が開業した年月を引っ張ってくる.
-        print(sta_name + " fetching...")
         # URLを開く
         try:
             with urlopen(sta_link) as response:
                 html = response.read()
-                time.sleep(3)
+                sleep(3)
         except Exception as e:
             print(e)
             raise CannotOpenURL(f"cannot open URL : {sta_link} ({sta_name})")
@@ -120,7 +138,7 @@ class Crawler:
             for row in row_tags
         ]
         # 最大の数字を返す.
-        # ->ここは最小にしておく（最近別枠ができることは少ないだろうので）
+        # ->ここは最小にしておく（最近wikiページでの別枠ができることは少ないだろうので）
         return min(years)
 
     def get_year_data(self, man_name):
@@ -130,10 +148,9 @@ class Crawler:
         try:
             sta_data: dict = self.get_station_links(man_name)
         except NonWikipediaLink as e:
-            logger.warning(f"link is not wikipedia : {e}")
+            raise NonWikipediaLink(f"link is not wikipedia : {e}")
         except ElementNotFound as e:
-            logger.warning(f"railroad section not found : {e}")
-            sta_data = "None"
+            raise ElementNotFound(f"railroad section not found : {e}")
 
         for name, link in sta_data.items():
             try:
@@ -149,17 +166,7 @@ class Crawler:
         max_year_name = max(years_data, key=years_data.get)
         min_year_name = min(years_data, key=years_data.get)
 
-        return (
-            max_year_name,
-            years_data[max_year_name],
-            min_year_name,
-            years_data[min_year_name],
-        )
-
-
-# # resultを使ってcsv出力
-# with open("result.csv", mode="w", encoding="utf-8") as f:
-#     writer = csv.writer(f, lineterminator="\n")
-#     writer.writerows(result)
-
-crawler = Crawler()
+        return {
+            "max": [max_year_name, years_data[max_year_name]],
+            "min": [min_year_name, years_data[min_year_name]],
+        }

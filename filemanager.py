@@ -50,3 +50,12 @@ class DataFilesIO:
         with open(self.priority_data_path) as f:
             priority_data = json.load(f)
         return priority_data
+
+    def load_local_html(self, path):
+        # 受け取ったパスのファイルが存在するならそれを返し, 存在しなければNoneを返す.
+        if os.path.exists(path):
+            with open(path) as f:
+                html = f.read()
+            return html
+        else:
+            return None

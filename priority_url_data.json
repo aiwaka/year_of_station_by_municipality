@@ -1,4 +1,5 @@
 {
-    "札幌市南区": "https://ja.wikipedia.org/wiki/%E5%8D%97%E5%8C%BA_(%E6%9C%AD%E5%B9%8C%E5%B8%82)",
-    "札幌市手稲区": "https://ja.wikipedia.org/wiki/%E6%89%8B%E7%A8%B2%E5%8C%BA"
+    "札幌市南区": {"url": "https://ja.wikipedia.org/wiki/%E5%8D%97%E5%8C%BA_(%E6%9C%AD%E5%B9%8C%E5%B8%82)"},
+    "札幌市手稲区": {"url": "https://ja.wikipedia.org/wiki/%E6%89%8B%E7%A8%B2%E5%8C%BA"},
+    "札幌市清田区": {"data": {"札幌市手稲区": { "max": [ "ほしみ駅", 1995 ], "min": [ "手稲駅", 1880 ] }}}
 }
