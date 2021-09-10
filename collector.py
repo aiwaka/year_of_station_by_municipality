@@ -12,6 +12,7 @@ class Collector:
         self.GET_NUM = config.get("GET_NUM", 5)
         self.man_list = file_manager.load_manicipalities_data()
         self.data = file_manager.load_raw_data()  # 保存データがあるなら読み込まれ, なければ空の辞書が返される.
+        self.priority_data = file_manager.load_priority_data()
 
     def run(self):
         # 自治体リストを回してクローラに入れて結果を求める.
@@ -19,7 +20,13 @@ class Collector:
         for man_index in range(min(self.GET_NUM, len(self.man_list))):
             man_name = self.man_list[man_index]
             if man_name in self.data:
-                # 既存のデータがすでにあるなら飛ばす.
+                # データにすでにあるとき
+                pri_data = self.priority_data[man_name].get("data", None)
+                if pri_data:
+                    # 優先データが指定されているならそれで置き換える.
+                    self.data[man_name] = pri_data
+                    logger.info(f"{man_name} : priority data found. replaced it.")
+                # ない場合は特に何もしない.
                 logger.info(f"{man_name} : data already exists. skipped")
                 continue
             try:
