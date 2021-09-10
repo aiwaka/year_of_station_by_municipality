@@ -158,6 +158,7 @@ class Crawler:
                     # nodata属性がTrueなら決められたデータを返す.
                     return {"max": ["なし", 0], "min": ["なし", 0]}
                 elif self.priority_data[man_name].get("data", None):
+                    # 優先データが指定されているならそれを返す.
                     return self.priority_data[man_name]["data"]
             sta_data: dict = self.get_station_links(man_name)
         except NonWikipediaLink as e:
@@ -165,13 +166,14 @@ class Crawler:
         except ElementNotFound as e:
             raise ElementNotFound(f"railroad section not found : {e}")
 
-        print(sta_data)
+        # print(sta_data)
+        logger.info(sta_data.keys())
         for name, link in sta_data.items():
             try:
                 years_data[name] = self.get_opening_date(
                     name, "https://ja.wikipedia.org" + link
                 )
-                logger.info(f"{name} : {years_data[name]}年")
+                # logger.info(f"{name} : {years_data[name]}年")
             except CannotOpenURL as e:
                 logger.error(f"cannot open url : {e}")
             except NoDateColumn as e:
