@@ -4,4 +4,4 @@ venv/
 wiki_page_html/
 *.json
 *.csv
-*.log
+*.log*
