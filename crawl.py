@@ -83,7 +83,7 @@ class Crawler:
         html = self.get_source(man_name)
         soup = BeautifulSoup(html, "html.parser")
         railroad_blocks = []
-        base_tag = soup.select_one("h3:has( > span#鉄道)")
+        base_tag = soup.select_one("h3:has( > span#鉄道),h3:has(> span#鉄道路線)")
         if base_tag is None:
             raise ElementNotFound(man_name)
         next_tag = base_tag.find_next_sibling()
@@ -101,7 +101,7 @@ class Crawler:
         pattern = re.compile(r"(?<!臨時|請願)(駅|停留場)$")
         # 取ってきたタグの中で駅や停留所を
         for block in railroad_blocks:
-            link_list = block.select("li > a")
+            link_list = block.select("li > a,li > b > a")
             if link_list is []:
                 raise ElementNotFound(man_name + " (<li> or <a> tag not found)")
             for link in link_list:
