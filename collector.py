@@ -21,7 +21,10 @@ class Collector:
             man_name = self.man_list[man_index]
             if man_name in self.data:
                 # データにすでにあるとき
-                pri_data = self.priority_data[man_name].get("data", None)
+                if self.priority_data.get(man_name, None):
+                    pri_data = self.priority_data[man_name].get("data", None)
+                else:
+                    pri_data = None
                 if pri_data:
                     # 優先データが指定されているならそれで置き換える.
                     self.data[man_name] = pri_data
