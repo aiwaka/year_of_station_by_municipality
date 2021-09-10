@@ -16,7 +16,7 @@ def main():
             "raw_path": output_dir + "/raw.json",
             "input_path": output_dir + "/日本市町村人口.csv",
             "result_path": output_dir + "/自治体別駅設置年データ.csv",
-            "priority_data_path": output_dir + "/priority_url_data.json",
+            "priority_data_path": output_dir + "/priority_data.json",
         }
     )
 

@@ -1,0 +1,8 @@
+{
+    "札幌市南区": {"url": "https://ja.wikipedia.org/wiki/%E5%8D%97%E5%8C%BA_(%E6%9C%AD%E5%B9%8C%E5%B8%82)"},
+    "札幌市手稲区": {"url": "https://ja.wikipedia.org/wiki/%E6%89%8B%E7%A8%B2%E5%8C%BA"},
+    "札幌市清田区": {"nodata": true},
+    "北海道三笠市": {"data": { "max": [ "栄町駅", 1980 ], "min": [ "三笠駅", 1882 ] }},
+    "北海道千歳市": {"url": "https://ja.wikipedia.org/wiki/%E5%8D%83%E6%AD%B3%E5%B8%82"},
+    "北海道八雲町": {"url": "https://ja.wikipedia.org/wiki/%E5%85%AB%E9%9B%B2%E7%94%BA"}
+}
