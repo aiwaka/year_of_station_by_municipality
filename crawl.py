@@ -98,7 +98,8 @@ class Crawler:
             next_tag = next_tag.find_next_sibling()
 
         result_dict = {}
-        pattern = re.compile(r"(?<!臨時|請願)(駅|停留所)$")
+        pattern = re.compile(r"(?<!臨時|請願)(駅|停留場)$")
+        # 取ってきたタグの中で駅や停留所を
         for block in railroad_blocks:
             link_list = block.select("li > a")
             if link_list is []:
@@ -108,7 +109,8 @@ class Crawler:
                 if pattern.search(name) is not None and name not in result_dict:
                     result_dict[name] = link.attrs["href"]
 
-        print(result_dict)
+        if not result_dict:
+            raise ElementNotFound(man_name)
         return result_dict
 
     def get_opening_date(self, sta_name, sta_link):
@@ -125,7 +127,8 @@ class Crawler:
         soup = BeautifulSoup(html, "html.parser")
         # 開業年月日というテキストを持つthタグの隣のタグを持ってくる.
         row_tags = soup.select("th:-soup-contains('開業年月日')")
-        if row_tags is []:
+        # そのような部分がない場合は例外を投げる
+        if not row_tags:
             raise NoDateColumn(f"at {sta_link} ({sta_name})")
         # 正規表現で年を抜き出して整数にしてリストに格納
         year_pattern = re.compile(r"([0-9]{4})年")
@@ -139,6 +142,9 @@ class Crawler:
         ]
         # 最大の数字を返す.
         # ->ここは最小にしておく（最近wikiページでの別枠ができることは少ないだろうので）
+        # 最後でも空の場合例外を送出
+        if not years:
+            raise NoDateColumn(f"at {sta_link} ({sta_name})")
         return min(years)
 
     def get_year_data(self, man_name):
@@ -146,12 +152,20 @@ class Crawler:
         years_data = {}
 
         try:
+            if man_name in self.priority_data:
+                # 優先データに指定された名前があるならそれを返して終わりにする.
+                if self.priority_data[man_name].get("nodata", False):
+                    # nodata属性がTrueなら決められたデータを返す.
+                    return {"max": ["なし", 0], "min": ["なし", 0]}
+                elif self.priority_data[man_name].get("data", None):
+                    return self.priority_data[man_name]["data"]
             sta_data: dict = self.get_station_links(man_name)
         except NonWikipediaLink as e:
             raise NonWikipediaLink(f"link is not wikipedia : {e}")
         except ElementNotFound as e:
             raise ElementNotFound(f"railroad section not found : {e}")
 
+        print(sta_data)
         for name, link in sta_data.items():
             try:
                 years_data[name] = self.get_opening_date(
@@ -159,9 +173,9 @@ class Crawler:
                 )
                 logger.info(f"{name} : {years_data[name]}年")
             except CannotOpenURL as e:
-                logger.error(f"{e}")
+                logger.error(f"cannot open url : {e}")
             except NoDateColumn as e:
-                logger.error(f"{e}")
+                logger.error(f"no date column in webpage : {e}")
 
         max_year_name = max(years_data, key=years_data.get)
         min_year_name = min(years_data, key=years_data.get)
