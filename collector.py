@@ -29,7 +29,7 @@ class Collector:
             except ThisAppException as e:
                 logger.error(e)
                 self.file_manager.save_raw_data(self.data)
-                break
+                continue
             except Exception as e:
                 logger.error(traceback.format_exc())
                 print(e)
