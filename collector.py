@@ -19,12 +19,10 @@ class Collector:
         # GET_NUMとリストの最大数で小さい方のインデックスまで繰り返す.
         for man_index in range(min(self.GET_NUM, len(self.man_list))):
             man_name = self.man_list[man_index]
-            if man_name in self.data:
+            if "sta_data" in self.data and man_name in self.data:
+                # sta_data があるとき, かつ
                 # データにすでにあるとき
-                if self.priority_data.get(man_name, None):
-                    pri_data = self.priority_data[man_name].get("data", None)
-                else:
-                    pri_data = None
+                pri_data = self.priority_data.get(man_name, {}).get("data", None)
                 if pri_data:
                     # 優先データが指定されているならそれで置き換える.
                     self.data[man_name] = pri_data

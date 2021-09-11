@@ -23,7 +23,7 @@ class DataFilesIO:
 
     def save_raw_data(self, data):
         with open(self.raw_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps(data, ensure_ascii=False, indent=2))
+            f.write(json.dumps(data, ensure_ascii=False))
 
     def load_manicipalities_data(self):
         try:

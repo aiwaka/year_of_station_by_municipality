@@ -183,6 +183,7 @@ class Crawler:
         min_year_name = min(years_data, key=years_data.get)
 
         return {
+            "sta_data": list(sta_data.keys()),
             "max": [max_year_name, years_data[max_year_name]],
             "min": [min_year_name, years_data[min_year_name]],
         }
