@@ -7,7 +7,7 @@
 
 ## ログの解析
 想定されるエラーが何種類かある.
-+ link is not wikipedia : chromeで検索して一番上のリンクを取ってくるが, それがwikipediaの記事ではない場合. 優先データに項目を作成し, 適切なurlを記載する.
++ link is not wikipedia : chromeで検索して一番上のリンクを取ってくるが, それがwikipediaの記事ではない場合. 優先データに項目を作成し, 適切なurlを記載する.
 + railroad section not found : 鉄道駅リンクがwikipediaに見つからない場合. 廃線は路線名だけ書いてあったりするので一括して触れないようにしている. 手動でデータを調べて優先データのdata項目に書くか, 本当に存在しない場合はnodata: trueを記述する.
 + no date column in webpage : 開業年月日のデータがないとき. これも優先データにデータを直接書く.
 
