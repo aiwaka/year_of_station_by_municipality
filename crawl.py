@@ -166,8 +166,6 @@ class Crawler:
         except ElementNotFound as e:
             raise ElementNotFound(f"railroad section not found : {e}")
 
-        # print(sta_data)
-        logger.info(sta_data.keys())
         for name, link in sta_data.items():
             try:
                 years_data[name] = self.get_opening_date(
