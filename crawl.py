@@ -119,10 +119,19 @@ class Crawler:
             next_tag = next_tag.find_next_sibling()
 
         # 「廃線」や「廃止された鉄道」などがあるなら警告として出しておく.
-        closed_line = soup.select_one("#廃線,#廃止された鉄道")
+        warning_text = None
+        closed_line = soup.select_one("#廃線,#廃止路線,#廃止された鉄道路線,#廃止された鉄道,#かつてあった路線")
         if closed_line:
-            logger.warning(f"closed line may exist. : {man_name}")
-            error_storage.add(f"closed line may exist. : {man_name}")
+            warning_text = (
+                f"abandoned line may exist : {closed_line.attrs['id']} : {man_name}"
+            )
+        else:
+            closed_line = soup.select_one("p:-soup-contains('かつては')")
+            if closed_line:
+                warning_text = f"abandoned line may exist : かつては... : {man_name}"
+        if warning_text:
+            logger.warning(warning_text)
+            error_storage.add(warning_text)
 
         result_dict = {}
         pattern = re.compile(r"(?<!臨時|請願)(駅|停留場)$")
