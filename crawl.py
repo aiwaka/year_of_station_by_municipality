@@ -137,8 +137,8 @@ class Crawler:
         pattern = re.compile(r"(?<!臨時|請願)(駅|停留場)$")
         # 取ってきたタグの中で駅や停留所を探して順番に検査する.
         for block in railroad_blocks:
-            link_list = block.select("li > a,li > b > a")
-            if link_list is []:
+            link_list = block.select("li > a,li > b > a,p > b > a")
+            if link_list == []:
                 raise ElementNotFound(man_name + " (<li> or <a> tag not found)")
             for link in link_list:
                 name = link.get_text()
