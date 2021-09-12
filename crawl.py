@@ -156,10 +156,22 @@ class Crawler:
                 # 優先データに指定された名前があるならそれを返して終わりにする.
                 if self.priority_data[man_name].get("nodata", False):
                     # nodata属性がTrueなら決められたデータを返す.
-                    return {"max": ["なし", 0], "min": ["なし", 0]}
+                    return {"sta_data": [], "max": ["なし", 0], "min": ["なし", 0]}
                 elif self.priority_data[man_name].get("data", None):
                     # 優先データが指定されているならそれを返す.
+                    # ただし, クロールの段階では全部のデータが揃っていないと不可とする.
+                    pri_data = self.priority_data[man_name]["data"]
+                    pri_sta_data = pri_data.get("sta_data", None)
+                    pri_max_data = pri_data.get("max", None)
+                    pri_min_data = pri_data.get("min", None)
+                    if pri_sta_data and pri_max_data and pri_min_data:
                     return self.priority_data[man_name]["data"]
+                    else:
+                        logger.warning(
+                            f"{man_name} : "
+                            "priority data exists, "
+                            "but not all attrs are available."
+                        )
             sta_data: dict = self.get_station_links(man_name)
         except NonWikipediaLink as e:
             raise NonWikipediaLink(f"link is not wikipedia : {e}")
