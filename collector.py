@@ -2,6 +2,7 @@ from crawl import Crawler
 from filemanager import DataFilesIO
 import traceback
 from my_exception import ThisAppException
+from error_storage import error_storage
 from logzero import logger
 
 
@@ -49,6 +50,7 @@ class Collector:
             except ThisAppException as e:
                 logger.error(e)
                 self.file_manager.save_raw_data(self.data)
+                error_storage.add(e)
                 continue
             except Exception as e:
                 logger.error(traceback.format_exc())
@@ -60,5 +62,10 @@ class Collector:
     def save(self):
         self.file_manager.save_raw_data(self.data)
         self.file_manager.output_csv(self.data)
-        logger.info(f"got {len(self.data)} data.")
+        logger.info("summary:")
+        logger.info(f"got {len(self.data)} data correctly.")
+        if error_storage.storage:
+            logger.info("the following error caused.")
+            for e in error_storage.storage:
+                logger.info(e)
         logger.info("script finished.")

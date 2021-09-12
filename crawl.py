@@ -8,6 +8,7 @@ from urllib.parse import quote
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 from my_exception import NonWikipediaLink, ElementNotFound, CannotOpenURL, NoDateColumn
+from error_storage import error_storage
 from filemanager import DataFilesIO
 
 
@@ -116,6 +117,12 @@ class Crawler:
             ):
                 railroad_blocks.append(next_tag)
             next_tag = next_tag.find_next_sibling()
+
+        # 「廃線」や「廃止された鉄道」などがあるなら警告として出しておく.
+        closed_line = soup.select_one("#廃線,#廃止された鉄道")
+        if closed_line:
+            logger.warning(f"closed line may exist. : {man_name}")
+            error_storage.add(f"closed line may exist. : {man_name}")
 
         result_dict = {}
         pattern = re.compile(r"(?<!臨時|請願)(駅|停留場)$")
