@@ -42,6 +42,31 @@ class Crawler:
         link = search_result[0].find_element_by_tag_name("a").get_attribute("href")
         return link
 
+    def source_formatting(self, html) -> str:
+        # 自治体のhtmlソースから, 交通以外のh2タグと, ヘッダーを除いたものを返す.
+        soup = BeautifulSoup(html, "html.parser")
+        soup.select_one("head").decompose()
+        content_elem = soup.select_one("div#content")  # idがcontentのタグ
+        # 兄弟要素を全て潰す
+        for elem in content_elem.find_previous_siblings():
+            elem.decompose()
+        for elem in content_elem.find_next_siblings():
+            elem.decompose()
+        # idが交通のspanを子要素に持つh2タグ
+        traffic_elem = soup.select_one("h2:has( > span#交通)")
+        # 前の兄弟要素を全て潰す
+        for elem in traffic_elem.find_previous_siblings():
+            elem.decompose()
+        # 次のh2タグをみつけ, それ以降をすべて潰す
+        next_tag = traffic_elem.find_next_sibling()
+        while next_tag is not None and next_tag.name != "h2":
+            next_tag = next_tag.find_next_sibling()
+        if next_tag is not None:
+            for elem in next_tag.find_next_siblings():
+                elem.decompose()
+            next_tag.decompose()
+        return str(soup)
+
     def get_source(self, man_name):
         # 自治体名からwikipediaのhtmlを返す.
         # 一度ウェブから取ったら保存するようにして時間とトラフィック削減
@@ -53,12 +78,9 @@ class Crawler:
             self.open_browser()
             link = self.get_wiki_link(man_name)
             if "ja.wikipedia.org" not in link:
-                # wikipediaのサイトではなかったら, 上書きページを見に行く.
+                # wikipediaのサイトではなかったら, 優先データを見に行く.
                 # エラーを見つけたら手動で追加する.
-                if (
-                    man_name in self.priority_data
-                    and "url" in self.priority_data[man_name]
-                ):
+                if self.priority_data.get(man_name, {}).get("url", None):
                     link = self.priority_data[man_name]["url"]
                 else:
                     # それでもみつからなかったら例外を送る
@@ -66,12 +88,10 @@ class Crawler:
             logger.info(f"{man_name} : source not exists. fetching from {link}")
             self.driver.get(link)
             sleep(1)
-            # ヘッダーがやたら長くて邪魔なので除去してからhtmlソースとする.
+            # ヘッダーなどが長くて邪魔なので交通以外の項やヘッダーを除去してからhtmlソースとする.
             html = self.driver.page_source
-            soup = BeautifulSoup(html, "html.parser")
-            soup.select_one("head").decompose()
             with open(FILE_PATH, mode="w") as f:
-                f.write(str(soup))
+                f.write(self.source_formatting(html))
             logger.info(f"saved as {man_name}.html")
         else:
             logger.info(f"{man_name} is found.")
@@ -99,7 +119,7 @@ class Crawler:
 
         result_dict = {}
         pattern = re.compile(r"(?<!臨時|請願)(駅|停留場)$")
-        # 取ってきたタグの中で駅や停留所を
+        # 取ってきたタグの中で駅や停留所を探して順番に検査する.
         for block in railroad_blocks:
             link_list = block.select("li > a,li > b > a")
             if link_list is []:
@@ -107,6 +127,7 @@ class Crawler:
             for link in link_list:
                 name = link.get_text()
                 if pattern.search(name) is not None and name not in result_dict:
+                    # 辞書に保存する形なので重複は排除される.
                     result_dict[name] = link.attrs["href"]
 
         if not result_dict:
@@ -147,13 +168,16 @@ class Crawler:
             raise NoDateColumn(f"at {sta_link} ({sta_name})")
         return min(years)
 
-    def get_year_data(self, man_name):
+    def get_year_data(self, man_name, force=False):
+        if force:
+            logger.info(f"{man_name} : force mode")
         # manicipalityの名前からスクレイピングして最も新しい駅の設置年をとってくる.
+        # forceがTrueだと優先データを読み込むことをしない.
         years_data = {}
 
         try:
-            if man_name in self.priority_data:
-                # 優先データに指定された名前があるならそれを返して終わりにする.
+            if not force and man_name in self.priority_data:
+                # 強制モードでなく優先データに指定された名前があるならそれを返して終わりにする.
                 if self.priority_data[man_name].get("nodata", False):
                     # nodata属性がTrueなら決められたデータを返す.
                     return {"sta_data": [], "max": ["なし", 0], "min": ["なし", 0]}
@@ -165,7 +189,7 @@ class Crawler:
                     pri_max_data = pri_data.get("max", None)
                     pri_min_data = pri_data.get("min", None)
                     if pri_sta_data and pri_max_data and pri_min_data:
-                    return self.priority_data[man_name]["data"]
+                        return self.priority_data[man_name]["data"]
                     else:
                         logger.warning(
                             f"{man_name} : "
