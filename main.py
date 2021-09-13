@@ -7,7 +7,7 @@ from collector import Collector
 # このファイルと同じ場所に出力
 output_dir = dirname(__file__)
 
-logfile("log.log", disableStderrLogger=False, maxBytes=32768, backupCount=5)
+logfile("log.log", disableStderrLogger=False)
 
 
 def main():
