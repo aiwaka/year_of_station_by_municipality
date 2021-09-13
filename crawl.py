@@ -104,7 +104,10 @@ class Crawler:
         html = self.get_source(man_name)
         soup = BeautifulSoup(html, "html.parser")
         railroad_blocks = []
-        base_tag = soup.select_one("h3:has( > span#鉄道),h3:has(> span#鉄道路線)")
+        base_tag = soup.select_one(
+            "h3:has( > span#鉄道),h3:has(> span#鉄道路線),"
+            "h3:has( > span#鉄道・索道),h3:has( > span#BRT)"
+        )
         if base_tag is None:
             raise ElementNotFound(man_name)
         next_tag = base_tag.find_next_sibling()
@@ -120,7 +123,9 @@ class Crawler:
 
         # 「廃線」や「廃止された鉄道」などがあるなら警告として出しておく.
         warning_text = None
-        closed_line = soup.select_one("#廃線,#廃止路線,#廃止された鉄道路線,#廃止された鉄道,#かつてあった路線")
+        closed_line = soup.select_one(
+            ("#廃線,#廃止路線,#廃止された鉄道路線,#廃線となった路線,#廃止された鉄道,#かつてあった路線")
+        )
         if closed_line:
             warning_text = (
                 f"abandoned line may exist : {closed_line.attrs['id']} : {man_name}"
