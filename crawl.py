@@ -107,23 +107,26 @@ class Crawler:
         # "駅名": リンクの辞書で返す.
         html = self.get_source(man_name)
         soup = BeautifulSoup(html, "html.parser")
+
+        # 鉄道やBRTなどのh3項目を取得する.
         railroad_blocks = []
-        base_tag = soup.select_one(
+        base_tags = soup.select(
             "h3:has( > span#鉄道),h3:has(> span#鉄道路線),"
             "h3:has( > span#鉄道・索道),h3:has( > span#BRT)"
         )
-        if base_tag is None:
+        if base_tags is None:
             raise ElementNotFound(man_name)
-        next_tag = base_tag.find_next_sibling()
-        # 鉄道が書いてあるh3から次のh3までの間のタグを保存する.
-        # ただしclassにgalleryを含むものは不要なので取り除きたい.
-        while next_tag.name != "h3":
-            if (
-                "class" not in next_tag.attrs
-                or "gallery" not in next_tag.attrs["class"]
-            ):
-                railroad_blocks.append(next_tag)
-            next_tag = next_tag.find_next_sibling()
+        for base_tag in base_tags:
+            next_tag = base_tag.find_next_sibling()
+            # 鉄道が書いてあるh3から次のh3までの間のタグを保存する.
+            # ただしclassにgalleryを含むものは不要なので取り除きたい.
+            while next_tag.name != "h3":
+                if (
+                    "class" not in next_tag.attrs
+                    or "gallery" not in next_tag.attrs["class"]
+                ):
+                    railroad_blocks.append(next_tag)
+                next_tag = next_tag.find_next_sibling()
 
         # 「廃線」や「廃止された鉄道」などがあるなら警告として出しておく.
         warning_text = None
@@ -149,7 +152,8 @@ class Crawler:
             # li > b > a,p > b > aとしていたのを修正.
             link_list = block.select("li > a,b > a")
             if link_list == []:
-                raise ElementNotFound(man_name + " (<li> or <a> tag not found)")
+                continue
+                # raise ElementNotFound(man_name + " (<li> or <a> tag not found)")
             for link in link_list:
                 name = link.get_text()
                 if pattern.search(name) is not None and name not in result_dict:
