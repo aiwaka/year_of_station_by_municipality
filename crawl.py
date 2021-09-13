@@ -66,7 +66,11 @@ class Crawler:
             for elem in next_tag.find_next_siblings():
                 elem.decompose()
             next_tag.decompose()
-        return str(soup)
+        # 空行を消す. 改行で分割し, stripで空白文字を消して空白になるものを空行と判断する.
+        result_html = "\n".join(
+            filter(lambda line: line.strip(), str(soup).split("\n"))
+        )
+        return result_html
 
     def get_source(self, man_name):
         # 自治体名からwikipediaのhtmlを返す.
