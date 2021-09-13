@@ -54,7 +54,7 @@ class Crawler:
         for elem in content_elem.find_next_siblings():
             elem.decompose()
         # idが交通のspanを子要素に持つh2タグ
-        traffic_elem = soup.select_one("h2:has( > span#交通)")
+        traffic_elem = soup.select_one("h2:has( > span#交通),h2:has( > span#交通機関)")
         # 前の兄弟要素を全て潰す
         for elem in traffic_elem.find_previous_siblings():
             elem.decompose()
@@ -138,19 +138,21 @@ class Crawler:
                 f"abandoned line may exist : {closed_line.attrs['id']} : {man_name}"
             )
         else:
-            closed_line = soup.select_one("p:-soup-contains('かつては')")
-            if closed_line:
-                warning_text = f"abandoned line may exist : かつては... : {man_name}"
+            for block in railroad_blocks:
+                closed_line = block.select_one("p:-soup-contains('かつては')")
+                if closed_line:
+                    warning_text = f"abandoned line may exist : かつては... : {man_name}"
+                    break
         if warning_text:
             logger.warning(warning_text)
             error_storage.add(warning_text)
 
         result_dict = {}
-        pattern = re.compile(r"(?<!臨時|請願)(駅|停留場)$")
+        pattern = re.compile(r"(?<!休止|臨時|請願)(駅|停留場)$")
         # 取ってきたタグの中で駅や停留所を探して順番に検査する.
         for block in railroad_blocks:
             # li > b > a,p > b > aとしていたのを修正.
-            link_list = block.select("li > a,b > a")
+            link_list = block.select("li a,b > a,dd a")
             if link_list == []:
                 continue
                 # raise ElementNotFound(man_name + " (<li> or <a> tag not found)")
