@@ -108,9 +108,8 @@ class Crawler:
             self.driver.get(link)
             sleep(1)
             # ヘッダーなどが長くて邪魔なので交通以外の項やヘッダーを除去してからhtmlソースとする.
-            file_manager.save_local_html(
-                man_name, self.source_formatting(self.driver.page_source)
-            )
+            html = self.source_formatting(self.driver.page_source)
+            file_manager.save_local_html(man_name, html)
             logger.info(f"saved as {man_name}.html")
         else:
             logger.info(f"{man_name} is found.")
