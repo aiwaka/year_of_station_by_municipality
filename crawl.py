@@ -74,7 +74,6 @@ class Crawler:
     def get_source(self, man_name):
         # 自治体名からwikipediaのhtmlを返す.
         # 一度ウェブから取ったら保存するようにして時間とトラフィック削減
-
         html = file_manager.load_local_html(man_name)
         if html is None:
             # ソースのhtmlが存在しなければ取ってきて保存し, あるならそれを使う.
@@ -82,7 +81,7 @@ class Crawler:
             link = self.get_wiki_link(man_name)
             if "ja.wikipedia.org" not in link:
                 # wikipediaのサイトではなかったら, 優先データを見に行く.
-                # エラーを見つけたら手動で追加する.
+                # エラーを見つけたら手動で優先データに追加しておく.
                 if self.priority_data.get(man_name, {}).get("url", None):
                     link = self.priority_data[man_name]["url"]
                 else:
@@ -100,9 +99,9 @@ class Crawler:
             logger.info(f"{man_name} is found.")
         return html
 
-    def get_station_links(self, man_name) -> list:
+    def get_station_links(self, man_name) -> dict:
         # 自治体名からそこに属する駅のリンクのリストを持ってくる.
-        # "駅名": リンクの辞書で返す.
+        # {"駅名": "リンク"}の辞書で返す.
         html = self.get_source(man_name)
         soup = BeautifulSoup(html, "html.parser")
 
