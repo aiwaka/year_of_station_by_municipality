@@ -15,6 +15,8 @@ def index():
             sum_index = log_list.index("summary:")
             summary = log_list[sum_index + 1 :]  # noqa: E203
             log_list = log_list[:sum_index]
+        else:
+            summary = []
     except Exception as e:
         print(e)
         log_list = []
