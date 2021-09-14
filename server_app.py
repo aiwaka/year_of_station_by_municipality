@@ -17,11 +17,15 @@ def index():
             log_list = log_list[:sum_index]
         else:
             summary = []
+        data_num = len([line for line in log_list if "got" in line])
     except Exception as e:
         print(e)
         log_list = []
         summary = []
-    return render_template("test.html", log_list=log_list, summary=summary)
+        data_num = 0
+    return render_template(
+        "test.html", log_list=log_list, summary=summary, data_num=data_num
+    )
 
 
 if __name__ == "__main__":

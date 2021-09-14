@@ -10,12 +10,15 @@
 </head>
 <body>
     <h1>駅データクローラ</h1>
+    <p>got {{data_num}} data.</p>
     <h2>ログリスト</h2>
-    <ul>
-    {% for log in log_list %}
-        <li>{{log}}</li>
-    {% endfor %}
-    </ul>
+    <div style="height: 70vh; overflow: scroll;">
+        <ul>
+        {% for log in log_list %}
+            <li>{{log}}</li>
+        {% endfor %}
+        </ul>
+    </div>
 
     {% if summary %}
     <h2>Summary</h2>
