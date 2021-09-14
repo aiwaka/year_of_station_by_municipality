@@ -1,5 +1,5 @@
 from crawl import Crawler
-from filemanager import DataFilesIO
+from filemanager import file_manager
 import traceback
 from my_exception import ThisAppException
 from error_storage import error_storage
@@ -7,10 +7,11 @@ from logzero import logger
 
 
 class Collector:
-    def __init__(self, file_manager: DataFilesIO, config: dict) -> None:
-        self.crawler = Crawler(file_manager)
+    def __init__(self, config: dict) -> None:
         self.file_manager = file_manager
-        self.GET_NUM = config.get("GET_NUM", 5)
+        self.crawler = Crawler()
+        self.START_INDEX = config.get("START_INDEX", 0)
+        self.END_INDEX = config.get("GET_NUM", 5) + self.START_INDEX
         self.man_list = file_manager.load_manicipalities_data()
         self.data = file_manager.load_raw_data()  # 保存データがあるなら読み込まれ, なければ空の辞書が返される.
         self.priority_data = file_manager.load_priority_data()
@@ -18,7 +19,9 @@ class Collector:
     def run(self):
         # 自治体リストを回してクローラに入れて結果を求める.
         # GET_NUMとリストの最大数で小さい方のインデックスまで繰り返す.
-        for man_index in range(min(self.GET_NUM, len(self.man_list))):
+        for man_index in range(
+            self.START_INDEX, min(self.END_INDEX, len(self.man_list))
+        ):
             man_name = self.man_list[man_index]
             if man_name in self.data:
                 # データにすでにあるとき

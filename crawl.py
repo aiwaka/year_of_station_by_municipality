@@ -9,11 +9,11 @@ from urllib.request import urlopen
 from bs4 import BeautifulSoup
 from my_exception import NonWikipediaLink, ElementNotFound, CannotOpenURL, NoDateColumn
 from error_storage import error_storage
-from filemanager import DataFilesIO
+from filemanager import file_manager
 
 
 class Crawler:
-    def __init__(self, file_manager: DataFilesIO):
+    def __init__(self):
         self.file_manager = file_manager
         # 優先データを辞書として持っておく.
         # URLが見つけられない場合のURLや, データが誤りのときのデータなどを手動で書いておく.

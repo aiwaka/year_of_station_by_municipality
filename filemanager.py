@@ -1,6 +1,7 @@
 import os
 import csv
 import json
+from settings import file_manager_config
 
 
 # 入出力クラス
@@ -59,3 +60,6 @@ class DataFilesIO:
             return html
         else:
             return None
+
+
+file_manager = DataFilesIO(**file_manager_config)
