@@ -144,25 +144,50 @@ class Crawler:
 
         # 「廃線」や「廃止された鉄道」などがあるなら警告として出しておく.
         warning_text = None
+        ABANDONED_TEXT = [
+            "廃線",
+            "廃止路線",
+            "廃止された鉄道路線",
+            "廃線となった路線",
+            "廃止された鉄道",
+            "かつてあった路線",
+            "かつて存在した鉄道路線",
+        ]
+        # "#廃線,#廃止路線,#廃止された鉄道路線,#廃線となった路線,#廃止された鉄道,#かつてあった路線,#かつて存在した鉄道路線"
+        # まずidから探す. セレクタを作り, 一つでもあればOK.
         abandoned_line = soup.select_one(
-            ("#廃線,#廃止路線,#廃止された鉄道路線,#廃線となった路線,#廃止された鉄道,#かつてあった路線,#かつて存在した鉄道路線")
+            ",".join(map(lambda text: "#" + text, ABANDONED_TEXT))
         )
         if abandoned_line:
             warning_text = (
                 f"abandoned line may exist : {abandoned_line.attrs['id']} : {man_name}"
             )
         else:
+            # なければ個別にテキスト検索する.
+            # 鉄道の記述箇所を順番に検索
             for block in railroad_blocks:
-                abandoned_line = block.select_one("p:-soup-contains('かつては')")
-                if abandoned_line:
-                    warning_text = f"abandoned line may exist : かつては... : {man_name}"
+                # まずそれらしいテキストで検索.
+                for text in ABANDONED_TEXT:
+                    abandoned_line = block.select_one(f"*:-soup-contains('{text}')")
+                    if abandoned_line:
+                        warning_text = f"abandoned line may exist : {text} : {man_name}"
+                        break
+                if warning_text:
                     break
+                else:
+                    # まだなければ「かつては」で検索
+                    abandoned_line = block.select_one("p:-soup-contains('かつては')")
+                    if abandoned_line:
+                        warning_text = (
+                            f"abandoned line may exist : かつては... : {man_name}"
+                        )
+                        break
         if warning_text:
             logger.warning(warning_text)
             error_storage.add(warning_text)
 
         result_dict = {}
-        pattern = re.compile(r"(?<!休止|臨時|請願)(駅|停留場)$")
+        pattern = re.compile(r"(?<!鉄道|休止|臨時|請願)(駅|停留場)$")
         # 取ってきたタグの中で駅や停留所を探して順番に検査する.
         for block in railroad_blocks:
             # li > b > a,p > b > aとしていたのを修正.
@@ -172,7 +197,7 @@ class Crawler:
                 # raise ElementNotFound(man_name + " (<li> or <a> tag not found)")
             for link in link_list:
                 name = link.get_text()
-                if pattern.search(name) is not None:
+                if pattern.search(name) is not None and name != "駅":
                     # 辞書に保存する形なので重複は排除される.
                     result_dict[name] = link.attrs["href"]
 
@@ -214,6 +239,13 @@ class Crawler:
             raise NoDateColumn(f"cannot find address data : {sta_name}")
         # 住所がおかしいならNoneを返す.
         if not validate_man_name_and_address(man_name, address_list):
+            validation_failed_message = (
+                f"address validation failed : "
+                f"{sta_name} : {man_name}? {str(address_list)} "
+                "are correct by data."
+            )
+            logger.warning(validation_failed_message)
+            error_storage.add(validation_failed_message)
             return None
         # 生成した辞書を使ってその駅が開業した年月を引っ張ってくる.
         soup = BeautifulSoup(html, "html.parser")
@@ -279,8 +311,9 @@ class Crawler:
                     years_data[sta_name] = sta_year
                     print(f"{sta_name} : {years_data[sta_name]}年")
                 else:
-                    logger.warning(f"{sta_name} is not in {man_name}")
-                    error_storage.add(f"{sta_name} is not in {man_name}")
+                    pass
+                    # logger.warning(f"{sta_name} is not in {man_name}")
+                    # error_storage.add(f"{sta_name} is not in {man_name}")
             except CannotOpenURL as e:
                 logger.error(f"cannot open url : {e}")
             except NoDateColumn as e:
