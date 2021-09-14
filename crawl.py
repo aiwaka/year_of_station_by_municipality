@@ -117,7 +117,7 @@ class Crawler:
             next_tag = base_tag.find_next_sibling()
             # 鉄道が書いてあるh3から次のh3までの間のタグを保存する.
             # ただしclassにgalleryを含むものは不要なので取り除きたい.
-            while next_tag.name != "h3":
+            while next_tag is not None and next_tag.name != "h3":
                 if (
                     "class" not in next_tag.attrs
                     or "gallery" not in next_tag.attrs["class"]
@@ -127,17 +127,17 @@ class Crawler:
 
         # 「廃線」や「廃止された鉄道」などがあるなら警告として出しておく.
         warning_text = None
-        closed_line = soup.select_one(
+        abandoned_line = soup.select_one(
             ("#廃線,#廃止路線,#廃止された鉄道路線,#廃線となった路線,#廃止された鉄道,#かつてあった路線")
         )
-        if closed_line:
+        if abandoned_line:
             warning_text = (
-                f"abandoned line may exist : {closed_line.attrs['id']} : {man_name}"
+                f"abandoned line may exist : {abandoned_line.attrs['id']} : {man_name}"
             )
         else:
             for block in railroad_blocks:
-                closed_line = block.select_one("p:-soup-contains('かつては')")
-                if closed_line:
+                abandoned_line = block.select_one("p:-soup-contains('かつては')")
+                if abandoned_line:
                     warning_text = f"abandoned line may exist : かつては... : {man_name}"
                     break
         if warning_text:
@@ -155,7 +155,7 @@ class Crawler:
                 # raise ElementNotFound(man_name + " (<li> or <a> tag not found)")
             for link in link_list:
                 name = link.get_text()
-                if pattern.search(name) is not None and name not in result_dict:
+                if pattern.search(name) is not None:
                     # 辞書に保存する形なので重複は排除される.
                     result_dict[name] = link.attrs["href"]
 
