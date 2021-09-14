@@ -8,7 +8,6 @@ from logzero import logger
 
 class Collector:
     def __init__(self, config: dict) -> None:
-        self.file_manager = file_manager
         self.crawler = Crawler()
         self.START_INDEX = config.get("START_INDEX", 0)
         self.END_INDEX = config.get("GET_NUM", 5) + self.START_INDEX
@@ -43,28 +42,27 @@ class Collector:
                         f"{man_name} : "
                         "priority data found. partially or fully replaced it."
                     )
-                # ない場合は特に何もせず飛ばす.
-                logger.info(f"{man_name} : data already exists. skipped")
+                else:
+                    # ない場合は特に何もせず飛ばす.
+                    logger.info(f"{man_name} : data already exists. skipped")
                 continue
             try:
                 result = self.crawler.get_year_data(man_name)
                 self.data[man_name] = result
-                logger.info(f"{man_name} : {result}")
+                logger.info(f"got data : {man_name} : {result}")
             except ThisAppException as e:
                 logger.error(e)
-                self.file_manager.save_raw_data(self.data)
+                file_manager.save_raw_data(self.data)
                 error_storage.add(e)
                 continue
-            except Exception as e:
+            except Exception:
                 logger.error(traceback.format_exc())
-                print(e)
-                self.file_manager.save_raw_data(self.data)
+                file_manager.save_raw_data(self.data)
         self.crawler.close_browser()
-        return self.data
 
     def save(self):
-        self.file_manager.save_raw_data(self.data)
-        self.file_manager.output_csv(self.data)
+        file_manager.save_raw_data(self.data)
+        file_manager.output_csv(self.data)
         logger.info("summary:")
         logger.info(f"got {len(self.data)} data correctly.")
         if error_storage.storage:

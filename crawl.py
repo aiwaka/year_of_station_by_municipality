@@ -1,6 +1,6 @@
 import re
-from time import sleep
 import chromedriver_binary  # noqa: F401
+from time import sleep
 from logzero import logger
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -14,7 +14,6 @@ from filemanager import file_manager
 
 class Crawler:
     def __init__(self):
-        self.file_manager = file_manager
         # 優先データを辞書として持っておく.
         # URLが見つけられない場合のURLや, データが誤りのときのデータなどを手動で書いておく.
         self.priority_data = file_manager.load_priority_data()
@@ -75,9 +74,8 @@ class Crawler:
     def get_source(self, man_name):
         # 自治体名からwikipediaのhtmlを返す.
         # 一度ウェブから取ったら保存するようにして時間とトラフィック削減
-        FILE_PATH = f"./wiki_page_html/{man_name}.html"
 
-        html = self.file_manager.load_local_html(FILE_PATH)
+        html = file_manager.load_local_html(man_name)
         if html is None:
             # ソースのhtmlが存在しなければ取ってきて保存し, あるならそれを使う.
             self.open_browser()
@@ -94,9 +92,9 @@ class Crawler:
             self.driver.get(link)
             sleep(1)
             # ヘッダーなどが長くて邪魔なので交通以外の項やヘッダーを除去してからhtmlソースとする.
-            html = self.driver.page_source
-            with open(FILE_PATH, mode="w") as f:
-                f.write(self.source_formatting(html))
+            file_manager.save_local_html(
+                man_name, self.source_formatting(self.driver.page_source)
+            )
             logger.info(f"saved as {man_name}.html")
         else:
             logger.info(f"{man_name} is found.")
