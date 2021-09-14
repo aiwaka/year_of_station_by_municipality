@@ -31,6 +31,7 @@ class Crawler:
         # 優先データを辞書として持っておく.
         # URLが見つけられない場合のURLや, データが誤りのときのデータなどを手動で書いておく.
         self.priority_data = file_manager.load_priority_data()
+        self.address_data = file_manager.load_address_dict()
 
     def open_browser(self):
         # ブラウザーを起動. すでに起動しているならなにもしない.
@@ -144,7 +145,7 @@ class Crawler:
         # 「廃線」や「廃止された鉄道」などがあるなら警告として出しておく.
         warning_text = None
         abandoned_line = soup.select_one(
-            ("#廃線,#廃止路線,#廃止された鉄道路線,#廃線となった路線,#廃止された鉄道,#かつてあった路線")
+            ("#廃線,#廃止路線,#廃止された鉄道路線,#廃線となった路線,#廃止された鉄道,#かつてあった路線,#かつて存在した鉄道路線")
         )
         if abandoned_line:
             warning_text = (
@@ -190,8 +191,12 @@ class Crawler:
             raise CannotOpenURL(f"cannot open URL : {sta_link} ({sta_name})")
         return html
 
-    def get_address_list(self, html) -> list:
-        # 駅の住所（の一部）を持ってくる. 複数あることも考えてリストで返す
+    def get_address_list(self, sta_name, html) -> list:
+        # 駅の住所（の一部）を持ってくる. 複数あることも考えてリストで返す.
+        # 住所録に名前があるならそれを返せば良い.
+        if sta_name[:-1] in self.address_data:
+            return self.address_data[sta_name[:-1]]
+        # ないならhtmlから抽出する.
         soup = BeautifulSoup(html, "html.parser")
         row_tags = soup.select("th:-soup-contains('所在地')")
         result = []
@@ -204,7 +209,9 @@ class Crawler:
 
     def get_opening_date(self, man_name, sta_name, sta_link) -> Union[int, None]:
         html = self.get_station_html(sta_name, sta_link)
-        address_list = self.get_address_list(html)
+        address_list = self.get_address_list(sta_name, html)
+        if not address_list:
+            raise NoDateColumn(f"cannot find address data : {sta_name}")
         # 住所がおかしいならNoneを返す.
         if not validate_man_name_and_address(man_name, address_list):
             return None

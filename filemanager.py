@@ -9,13 +9,20 @@ from typing import Union
 # データ形式そのままのオブジェクトjsonのパスと結果csvファイルのパスを入力しておく.
 class DataFilesIO:
     def __init__(
-        self, raw_path, input_path, result_path, priority_data_path, wiki_storage_dir
+        self,
+        raw_path,
+        input_path,
+        result_path,
+        priority_data_path,
+        address_data_path,
+        wiki_storage_dir,
     ):
         self.raw_path = raw_path
         self.input_path = input_path
         self.result_path = result_path
         # 例外を補足して処理するための記述を書いたjsonのパス
         self.priority_data_path = priority_data_path
+        self.address_data_path = address_data_path
         # wikipediaのページを保存しておくディレクトリ
         self.wiki_storage_dir = wiki_storage_dir
 
@@ -70,6 +77,19 @@ class DataFilesIO:
         with open(self.priority_data_path) as f:
             priority_data = json.load(f)
         return priority_data
+
+    def load_address_dict(self) -> dict:
+        # 駅名に対応する住所のデータを返す.
+        # 一つの駅名に対して複数の所在地があることがあるのでvalueはリスト形式.
+        with open(self.address_data_path, encoding="utf-8") as f:
+            reader = csv.reader(f)
+            res_dict = {}
+            for row in reader:
+                if row[2] in res_dict:
+                    res_dict[row[2]].append(row[8])
+                else:
+                    res_dict[row[2]] = [row[8]]
+        return res_dict
 
     def save_local_html(self, man_name: str, html: str) -> None:
         # htmlソースを受け取ってfilenameで保存ディレクトリに保存する.
