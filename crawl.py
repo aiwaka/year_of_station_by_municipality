@@ -259,7 +259,7 @@ class Crawler:
             validation_failed_message = (
                 f"address validation failed : "
                 f"{sta_name} : {man_name}? {str(address_list)} "
-                "are correct by data."
+                "are correct according to data."
             )
             logger.warning(validation_failed_message)
             error_storage.add(validation_failed_message)
