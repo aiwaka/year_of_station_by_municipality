@@ -68,7 +68,8 @@ class Crawler:
         for elem in content_elem.find_next_siblings():
             elem.decompose()
         # idが交通のspanを子要素に持つh2タグ
-        traffic_elem = soup.select_one("h2:has( > span#交通),h2:has( > span#交通機関)")
+        # traffic_elem = soup.select_one("h2:has( > span#交通),h2:has( > span#交通機関)")
+        traffic_elem = soup.select_one("h2:has( > span[id*='交通'])")
         # 前の兄弟要素を全て潰す
         for elem in traffic_elem.find_previous_siblings():
             elem.decompose()
@@ -161,6 +162,9 @@ class Crawler:
             "かつてあった鉄道路線",
             "かつて存在した鉄道",
             "かつて存在した鉄道路線",
+            "過去に存在した鉄道",
+            "過去に存在した路線",
+            "過去に存在した鉄道路線",
         ]
         # "#廃線,#廃止路線,#廃止された鉄道路線,#廃線となった路線,#廃止された鉄道,#かつてあった路線,#かつて存在した鉄道路線"
         # まずidから探す. セレクタを作り, 一つでもあればOK.
@@ -229,7 +233,9 @@ class Crawler:
         # 駅の住所（の一部）を持ってくる. 複数あることも考えてリストで返す.
         # 住所録に名前があるならそれを返せば良い.
         if sta_name[:-1] in self.address_data:
-            return self.address_data[sta_name[:-1]]
+            # 全駅データの辞書には「駅」を省いた名前が書いてあるのでそれに対応して一文字消す
+            result = self.address_data[sta_name[:-1]]
+        else:
         # ないならhtmlから抽出する.
         soup = BeautifulSoup(html, "html.parser")
         row_tags = soup.select("th:-soup-contains('所在地')")
@@ -239,7 +245,9 @@ class Crawler:
             text = re.sub("[\n\ufeff/]", "", row.find_next_sibling().get_text())
             # 空白で分けた最初の部分を取得すれば住所の主要部分はまず取得できる.
             result.append(text.split(" ")[0])
-        return result
+        # 取得した住所の大きいケはすべて小文字にしておく.
+        # 日本市町村人口.csvの自治体名は全て小文字なのでこれで統一される.
+        return [text.replace("ケ", "ヶ") for text in result]
 
     def get_opening_date(self, man_name, sta_name, sta_link) -> Union[int, None]:
         html = self.get_station_html(sta_name, sta_link)
