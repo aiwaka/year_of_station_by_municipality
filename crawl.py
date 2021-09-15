@@ -124,21 +124,30 @@ class Crawler:
 
         # 鉄道やBRTなどのh3項目を取得する.
         railroad_blocks = []
-        RAILWAY_TAG_ID = ["鉄道", "鉄道路線", "鉄道・索道", "BRT", "鉄道と駅"]
+        RAILWAY_TAG_ID = ["鉄道", "鉄道路線", "鉄道・索道", "BRT", "鉄道と駅", "鉄道・ケーブルカー・ロープウェイ"]
         # base_tags = soup.select(
         #     "h3:has( > span#鉄道),h3:has(> span#鉄道路線),"
         #     "h3:has( > span#鉄道・索道),h3:has( > span#BRT)"
         # )
+        # まずh3タグで検索
+        base_tag_name: str = "h3"
         base_tags = soup.select(
             ",".join(map(lambda text: f"h3:has( > span#{text})", RAILWAY_TAG_ID))
         )
-        if base_tags is None:
+        if base_tags == []:
+            # だめならh4タグで検索
+            base_tag_name = "h4"
+            base_tags = soup.select(
+                ",".join(map(lambda text: f"h4:has( > span#{text})", RAILWAY_TAG_ID))
+            )
+        if base_tags == []:
+            # それでもだめなら例外
             raise ElementNotFound(f"railroad section not found : {man_name}")
         for base_tag in base_tags:
             next_tag = base_tag.find_next_sibling()
-            # 鉄道が書いてあるh3から次のh3までの間のタグを保存する.
+            # 鉄道が書いてあるh3またはh4から次のものまでの間のタグを保存する.
             # ただしclassにgalleryを含むものは不要なので取り除きたい.
-            while next_tag is not None and next_tag.name != "h3":
+            while next_tag is not None and next_tag.name != base_tag_name:
                 if (
                     "class" not in next_tag.attrs
                     or "gallery" not in next_tag.attrs["class"]
@@ -236,15 +245,15 @@ class Crawler:
             # 全駅データの辞書には「駅」を省いた名前が書いてあるのでそれに対応して一文字消す
             result = self.address_data[sta_name[:-1]]
         else:
-        # ないならhtmlから抽出する.
-        soup = BeautifulSoup(html, "html.parser")
-        row_tags = soup.select("th:-soup-contains('所在地')")
-        result = []
-        for row in row_tags:
-            # 所在地タグの隣のタグのテキストを取得し, とりあえずいらない文字を省く
-            text = re.sub("[\n\ufeff/]", "", row.find_next_sibling().get_text())
-            # 空白で分けた最初の部分を取得すれば住所の主要部分はまず取得できる.
-            result.append(text.split(" ")[0])
+            # ないならhtmlから抽出する.
+            soup = BeautifulSoup(html, "html.parser")
+            row_tags = soup.select("th:-soup-contains('所在地')")
+            result = []
+            for row in row_tags:
+                # 所在地タグの隣のタグのテキストを取得し, とりあえずいらない文字を省く
+                text = re.sub("[\n\ufeff/]", "", row.find_next_sibling().get_text())
+                # 空白で分けた最初の部分を取得すれば住所の主要部分はまず取得できる.
+                result.append(text.split(" ")[0])
         # 取得した住所の大きいケはすべて小文字にしておく.
         # 日本市町村人口.csvの自治体名は全て小文字なのでこれで統一される.
         return [text.replace("ケ", "ヶ") for text in result]
