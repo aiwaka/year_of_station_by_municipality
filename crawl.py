@@ -123,9 +123,13 @@ class Crawler:
 
         # 鉄道やBRTなどのh3項目を取得する.
         railroad_blocks = []
+        RAILWAY_TAG_ID = ["鉄道", "鉄道路線", "鉄道・索道", "BRT", "鉄道と駅"]
+        # base_tags = soup.select(
+        #     "h3:has( > span#鉄道),h3:has(> span#鉄道路線),"
+        #     "h3:has( > span#鉄道・索道),h3:has( > span#BRT)"
+        # )
         base_tags = soup.select(
-            "h3:has( > span#鉄道),h3:has(> span#鉄道路線),"
-            "h3:has( > span#鉄道・索道),h3:has( > span#BRT)"
+            ",".join(map(lambda text: f"h3:has( > span#{text})", RAILWAY_TAG_ID))
         )
         if base_tags is None:
             raise ElementNotFound(f"railroad section not found : {man_name}")
@@ -146,10 +150,16 @@ class Crawler:
         ABANDONED_TEXT = [
             "廃線",
             "廃止路線",
+            "廃止された路線",
+            "廃止された鉄道",
             "廃止された鉄道路線",
             "廃線となった路線",
-            "廃止された鉄道",
+            "廃線となった鉄道",
+            "廃線となった鉄道路線",
             "かつてあった路線",
+            "かつてあった鉄道",
+            "かつてあった鉄道路線",
+            "かつて存在した鉄道",
             "かつて存在した鉄道路線",
         ]
         # "#廃線,#廃止路線,#廃止された鉄道路線,#廃線となった路線,#廃止された鉄道,#かつてあった路線,#かつて存在した鉄道路線"
@@ -186,7 +196,7 @@ class Crawler:
             error_storage.add(warning_text)
 
         result_dict = {}
-        pattern = re.compile(r"(?<!鉄道|休止|臨時|請願)(駅|停留場)$")
+        pattern = re.compile(r"(?<!旅客|鉄道|休止|臨時|請願)(駅|停留場)$")
         # 取ってきたタグの中で駅や停留所を探して順番に検査する.
         for block in railroad_blocks:
             # li > b > a,p > b > aとしていたのを修正.
