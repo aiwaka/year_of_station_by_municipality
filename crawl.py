@@ -282,14 +282,13 @@ class Crawler:
             raise NoDateColumn(f"at {sta_link} ({sta_name})")
         # 正規表現で年を抜き出して整数にしてリストに格納
         year_pattern = re.compile(r"([0-9]{4})年")
-        years = [
-            int(
-                year_pattern.search(
-                    row.find_next_sibling().get_text().replace("\n", "")
-                ).groups()[0]
+        years = []
+        for row in row_tags:
+            year_matched = year_pattern.search(
+                row.find_next_sibling().get_text().replace("\n", "")
             )
-            for row in row_tags
-        ]
+            if year_matched:
+                years.append(int(year_matched.groups()[0]))
         # 最大の数字を返す.
         # ->ここは最小にしておく（最近wikiページでの別枠ができることは少ないだろうので）
         # 最後でも空の場合例外を送出
