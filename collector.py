@@ -56,7 +56,9 @@ class Collector:
                 error_storage.add(e)
                 continue
             except Exception:
-                logger.error(traceback.format_exc())
+                e = traceback.format_exc()
+                logger.error(e)
+                error_storage.add(e)
                 file_manager.save_raw_data(self.data)
         self.crawler.close_browser()
 
