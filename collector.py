@@ -1,6 +1,7 @@
+import traceback
+from typing import List, Final
 from crawl import Crawler
 from filemanager import file_manager
-import traceback
 from my_exception import ThisAppException
 from error_storage import error_storage
 from logzero import logger
@@ -9,19 +10,22 @@ from logzero import logger
 class Collector:
     def __init__(self, config: dict) -> None:
         self.crawler = Crawler()
-        self.START_INDEX = config.get("START_INDEX", 0)
-        self.END_INDEX = config.get("GET_NUM", 5) + self.START_INDEX
-        self.man_list = file_manager.load_manicipalities_data()
+        # 自治体名リストを取得.
+        self.man_list: List[str] = file_manager.load_manicipalities_data()
+        self.START_INDEX: Final[int] = config.get("START_INDEX", 0)
+        self.END_INDEX: Final[int] = min(
+            config.get("GET_NUM", len(self.man_list)) + self.START_INDEX,
+            len(self.man_list),
+        )
         self.data = file_manager.load_raw_data()  # 保存データがあるなら読み込まれ, なければ空の辞書が返される.
-        self.priority_data = file_manager.load_priority_data()
+        self.priority_data = file_manager.load_priority_data()  # 優先データを辞書で読み込む.
 
-    def run(self):
+    def run(self) -> None:
         # 自治体リストを回してクローラに入れて結果を求める.
         # GET_NUMとリストの最大数で小さい方のインデックスまで繰り返す.
-        for man_index in range(
-            self.START_INDEX, min(self.END_INDEX, len(self.man_list))
-        ):
-            man_name = self.man_list[man_index]
+        # for man_index in range(self.START_INDEX, self.END_INDEX):
+        #     man_name = self.man_list[man_index]
+        for man_name in self.man_list[self.START_INDEX : self.END_INDEX]:  # noqa: E203
             if man_name in self.data:
                 # データにすでにあるとき
                 pri_data = self.priority_data.get(man_name, {}).get("data", None)
@@ -62,7 +66,7 @@ class Collector:
                 file_manager.save_raw_data(self.data)
         self.crawler.close_browser()
 
-    def save(self):
+    def save(self) -> None:
         file_manager.save_raw_data(self.data)
         file_manager.output_csv(self.data)
         logger.info("summary:")

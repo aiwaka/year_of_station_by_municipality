@@ -4,7 +4,7 @@ from collector import Collector
 logfile("log.log", disableStderrLogger=False)
 
 
-def main():
+def main() -> None:
     config = {
         "START_INDEX": 10,  # 検索開始するインデックス
         "GET_NUM": 5,  # データを取得する最大数. 最大ならlen(man_list)でOK
