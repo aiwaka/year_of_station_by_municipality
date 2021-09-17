@@ -150,7 +150,7 @@ class Crawler:
         date_header_tag_list = soup.select("th:-soup-contains('開業年月日')")
         # そのような部分がない場合は例外を投げる
         if not date_header_tag_list:
-            raise NoDateColumn(f"at ({sta_name})")
+            raise NoDateColumn(f"no date column : at ({sta_name})")
         # 正規表現で年を抜き出して整数にしてリストに格納
         year_pattern = re.compile(r"([0-9]{4})年")
         years: List[int] = []
@@ -164,5 +164,5 @@ class Crawler:
         # ->ここは最小にしておく（最近wikiページでの別枠ができることは少ないだろうので）
         # 最後でも空の場合例外を送出
         if not years:
-            raise NoDateColumn(f"at ({sta_name})")
+            raise NoDateColumn(f"no date column : at ({sta_name})")
         return min(years)
