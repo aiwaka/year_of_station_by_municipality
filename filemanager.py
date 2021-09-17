@@ -73,10 +73,10 @@ class DataFilesIO:
             for man in data:
                 writer.writerow([man, data[man]["max"][1], data[man]["min"][1]])
 
-    def load_priority_data(self) -> Dict[str, Any]:
+    def load_priority_data(self) -> Dict[str, Dict[str, Any]]:
         # 優先データを読み込んで自治体名がキーの辞書で返す
         with open(self.priority_data_path) as f:
-            priority_data: Dict[str, Any] = json.load(f)
+            priority_data: Dict[str, Dict[str, Any]] = json.load(f)
         return priority_data
 
     def load_address_dict(self) -> Dict[str, List[str]]:

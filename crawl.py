@@ -1,7 +1,7 @@
 import re
 import chromedriver_binary  # noqa: F401
 from bs4.element import Tag
-from typing import Any, Dict, List, Union, Final
+from typing import Any, Dict, List, Union
 from time import sleep
 from logzero import logger
 from selenium import webdriver
@@ -9,32 +9,15 @@ from selenium.webdriver.chrome.options import Options
 from urllib.parse import quote
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
-from my_exception import (
+from appexcp.my_exception import (
     NonWikipediaLink,
-    ElementNotFound,
     CannotOpenURL,
     NoDateColumn,
-    ThisAppException,
+    # ThisAppException,
 )
-from error_storage import error_storage
+
+# from error_storage import error_storage
 from filemanager import file_manager
-
-
-def validate_man_name_and_address(man_name: str, address_list: list[str]) -> bool:
-    # （MANDARA10の）自治体名と住所が一致しているか返す
-    # これで（都道府県または政令市）（市区町村または政令市区）に分けることができる.
-    pattern = re.compile(r"(さいたま市|堺市|...??[都道府県市])(.+?[市区町村])")
-    # （市区町村または政令市区）を取得
-    # partial_name = pattern.search(man_name).groups()[1]
-    partial_name = match.groups()[1] if (match := pattern.search(man_name)) else None
-    if not partial_name:
-        raise ThisAppException(f"cannot find pattern from man_name({man_name}).")
-    result = False
-    for address in address_list:
-        # 住所のリストにその名前が入っていればOKとする.
-        if partial_name in address:
-            result = True
-    return result
 
 
 class Crawler:
@@ -42,7 +25,7 @@ class Crawler:
         # 優先データを辞書として持っておく.
         # URLが見つけられない場合のURLや, データが誤りのときのデータなどを手動で書いておく.
         self.priority_data: Dict[str, Any] = file_manager.load_priority_data()
-        self.address_data: Dict[str, List[str]] = file_manager.load_address_dict()
+        # self.address_data: Dict[str, List[str]] = file_manager.load_address_dict()
 
     def open_browser(self):
         # ブラウザーを起動. すでに起動しているならなにもしない.
@@ -99,7 +82,7 @@ class Crawler:
         )
         return result_html
 
-    def get_source(self, man_name):
+    def get_source(self, man_name: str) -> str:
         # 自治体名からwikipediaのhtmlを返す.
         # 一度ウェブから取ったら保存するようにして時間とトラフィック削減
         html = file_manager.load_local_html(man_name)
@@ -128,170 +111,66 @@ class Crawler:
             logger.info(f"{man_name} is found.")
         return html
 
-    def get_station_links(self, man_name: str) -> Dict[str, str]:
-        # 自治体名からそこに属する駅のリンクのリストを持ってくる.
-        # {"駅名": "リンク"}の辞書で返す.
-        html = self.get_source(man_name)
-        soup = BeautifulSoup(html, "html.parser")
-
-        # 鉄道やBRTなどのh3項目を取得する.
-        railroad_blocks: list[Tag] = []
-        RAILWAY_TAG_ID = ["鉄道", "鉄道路線", "鉄道・索道", "BRT", "鉄道と駅", "鉄道・ケーブルカー・ロープウェイ"]
-        # まずh3タグで検索
-        base_tag_name: str = "h3"
-        base_tags = soup.select(
-            ",".join(map(lambda text: f"h3:has( > span#{text})", RAILWAY_TAG_ID))
-        )
-        if base_tags == []:
-            # だめならh4タグで検索
-            base_tag_name = "h4"
-            base_tags = soup.select(
-                ",".join(map(lambda text: f"h4:has( > span#{text})", RAILWAY_TAG_ID))
-            )
-        if base_tags == []:
-            # それでもだめなら例外
-            raise ElementNotFound(f"railroad section not found : {man_name}")
-        for base_tag in base_tags:
-            next_tag = base_tag.find_next_sibling()
-            # 鉄道が書いてあるh3またはh4から次のものまでの間のタグを保存する.
-            # ただしclassにgalleryを含むものは不要なので取り除きたい.
-            while next_tag is not None and next_tag.name != base_tag_name:
-                if type(next_tag) is Tag and (
-                    "class" not in next_tag.attrs
-                    or "gallery" not in next_tag.attrs["class"]
-                ):
-                    railroad_blocks.append(next_tag)
-                next_tag = next_tag.find_next_sibling()
-
-        # 「廃線」や「廃止された鉄道」などがあるなら警告として出しておく.
-        warning_text: Union[None, str] = None
-        ABANDONED_TEXT = [
-            "廃線",
-            "廃止路線",
-            "廃止された路線",
-            "廃止された鉄道",
-            "廃止された鉄道路線",
-            "廃線となった路線",
-            "廃線となった鉄道",
-            "廃線となった鉄道路線",
-            "かつてあった路線",
-            "かつてあった鉄道",
-            "かつてあった鉄道路線",
-            "かつて存在した鉄道",
-            "かつて存在した鉄道路線",
-            "過去に存在した鉄道",
-            "過去に存在した路線",
-            "過去に存在した鉄道路線",
-        ]
-        # "#廃線,#廃止路線,#廃止された鉄道路線,#廃線となった路線,#廃止された鉄道,#かつてあった路線,#かつて存在した鉄道路線"
-        # まずidから探す. セレクタを作り, 一つでもあればOK.
-        abandoned_line = soup.select_one(
-            # ",".join(map(lambda text: "#" + text, ABANDONED_TEXT))
-            ",".join([f"#{text}" for text in ABANDONED_TEXT])
-        )
-        if abandoned_line:
-            warning_text = (
-                f"abandoned line may exist : {abandoned_line.attrs['id']} : {man_name}"
-            )
-        else:
-            # なければ個別にテキスト検索する.
-            # 鉄道の記述箇所を順番に検索
-            for block in railroad_blocks:
-                # まずそれらしいテキストで検索.
-                for text in ABANDONED_TEXT:
-                    # abandoned_line = block.select_one(f"*:-soup-contains('{text}')")
-                    # if abandoned_line:
-                    if block.select_one(f"*:-soup-contains('{text}')"):
-                        warning_text = f"abandoned line may exist : {text} : {man_name}"
-                        break
-                if warning_text:
-                    break
-                else:
-                    # まだなければ「かつては」で検索
-                    # abandoned_line = block.select_one("p:-soup-contains('かつては')")
-                    # if abandoned_line:
-                    if block.select_one("p:-soup-contains('かつては')"):
-                        warning_text = (
-                            f"abandoned line may exist : かつては... : {man_name}"
-                        )
-                        break
-        if warning_text:
-            logger.warning(warning_text)
-            error_storage.add(warning_text)
-
-        result_dict: Dict[str, str] = {}
-        pattern = re.compile(r"(?<!旅客|鉄道|休止|臨時|請願)(駅|停留場)$")
-        # 取ってきたタグの中で駅や停留所を探して順番に検査する.
-        for block in railroad_blocks:
-            # どうせ住所チェックするので, 駅を含むリンクすべて取ってくることにする.
-            # ただし少なくとも敦賀市では失敗する.
-            link_list = block.select("a:-soup-contains('駅')")
-            for link in link_list:
-                name = link.get_text()
-                if pattern.search(name) is not None and name != "駅":
-                    # 辞書に保存する形なので重複は排除される.
-                    result_dict[name] = link.attrs["href"]
-
-        if not result_dict:
-            raise ElementNotFound(f"railroad section not found : {man_name}")
-        return result_dict
-
-    def get_station_html(self, sta_name: str, sta_link: str):
+    def get_station_html(self, sta_name: str, sta_link: str) -> str:
         # 駅のリンク先htmlを返す.
         try:
             with urlopen(sta_link) as response:
-                html = response.read()
+                html: str = response.read()
                 sleep(3)
         except Exception as e:
             print(e)
             raise CannotOpenURL(f"cannot open URL : {sta_link} ({sta_name})")
         return html
 
-    def get_address_list(self, sta_name: str, html) -> List[str]:
+    def get_address_list(
+        self, sta_name: str, address_dict: Dict[str, List[str]], soup: BeautifulSoup
+    ) -> List[str]:
         # 駅の住所（の一部）を持ってくる. 複数あることも考えてリストで返す.
-        # 住所録に名前があるならそれを返せば良い.
-        if sta_name[:-1] in self.address_data:
-            # 全駅データの辞書には「駅」を省いた名前が書いてあるのでそれに対応して一文字消す
-            result: List[str] = self.address_data[sta_name[:-1]]
-        else:
-            # ないならhtmlから抽出する.
-            soup = BeautifulSoup(html, "html.parser")
-            address_header_tag_list = soup.select("th:-soup-contains('所在地')")
-            result: List[str] = []
-            for address_header_tag in address_header_tag_list:
-                # 所在地タグの隣のタグのテキストを取得し, とりあえずいらない文字を省く
-                if type(address_elem := address_header_tag.find_next_sibling()) is Tag:
-                    text = re.sub("[\n\ufeff/]", "", address_elem.get_text())
-                    # 空白で分けた最初の部分を取得すれば住所の主要部分はまず取得できる.
-                    result.append(text.split(" ")[0])
+        # 住所録に名前があるならそれを追加して返す.
+        result: List[str] = []
+        # 全駅データの辞書には「駅」を省いた名前が書いてあるのでそれに対応して一文字消す
+        result.extend(address_dict.get(sta_name[:-1], []))
+        address_header_tag_list = soup.select("th:-soup-contains('所在地')")
+        for address_header_tag in address_header_tag_list:
+            # 所在地タグの隣のタグのテキストを取得し, とりあえずいらない文字を省く
+            if type(address_elem := address_header_tag.find_next_sibling()) is Tag:
+                text = re.sub("[\n\ufeff/]", "", address_elem.get_text())
+                # 空白で分けた最初の部分を取得すれば住所の主要部分はまず取得できる.
+                result.append(text.split(" ")[0])
         # 取得した住所の大きいケはすべて小文字にしておく.
         # 日本市町村人口.csvの自治体名は全て小文字なのでこれで統一される.
         return [text.replace("ケ", "ヶ") for text in result]
 
     def get_opening_date(
-        self, man_name: str, sta_name: str, sta_link
+        # self, man_name: str, sta_name: str, sta_link, soup: BeautifulSoup
+        self,
+        man_name: str,
+        sta_name: str,
+        soup: BeautifulSoup,
     ) -> Union[int, None]:
-        html = self.get_station_html(sta_name, sta_link)
-        address_list = self.get_address_list(sta_name, html)
-        if not address_list:
-            raise NoDateColumn(f"cannot find address data : {sta_name}")
+        # 自治体名と駅名と駅リンクを受け取って開業年を返す.
+        # todo: 住所チェックは分離して, このメソッドを呼び出す前にcollector側でチェックするほうがよさそう.
+        # html = self.get_station_html(sta_name, sta_link)
+        # soup = BeautifulSoup(html, "html.parser")
+        # address_list = self.get_address_list(sta_name, html)
+        # address_list = self.get_address_list(sta_name, soup)
+        # if not address_list:
+        #     raise NoDateColumn(f"cannot find address data : {sta_name}")
         # 住所がおかしいならNoneを返す.
-        if not validate_man_name_and_address(man_name, address_list):
-            validation_failed_message: Final[str] = (
-                f"address of {sta_name} : "
-                f"{man_name}? {str(address_list)} "
-                "are correct according to data."
-            )
-            logger.warning(validation_failed_message)
-            error_storage.add(validation_failed_message)
-            return None
-        # 生成した辞書を使ってその駅が開業した年月を引っ張ってくる.
-        soup = BeautifulSoup(html, "html.parser")
+        # if not validate_man_name_and_address(man_name, address_list):
+        #     validation_failed_message: Final[str] = (
+        #         f"address of {sta_name} : "
+        #         f"{man_name}? {str(address_list)} "
+        #         "are correct according to data."
+        #     )
+        #     logger.warning(validation_failed_message)
+        #     error_storage.add(validation_failed_message)
+        #     return None
         # 開業年月日というテキストを持つthタグの隣のタグを持ってくる.
         date_header_tag_list = soup.select("th:-soup-contains('開業年月日')")
         # そのような部分がない場合は例外を投げる
         if not date_header_tag_list:
-            raise NoDateColumn(f"at {sta_link} ({sta_name})")
+            raise NoDateColumn(f"at ({sta_name})")
         # 正規表現で年を抜き出して整数にしてリストに格納
         year_pattern = re.compile(r"([0-9]{4})年")
         years: List[int] = []
@@ -305,68 +184,5 @@ class Crawler:
         # ->ここは最小にしておく（最近wikiページでの別枠ができることは少ないだろうので）
         # 最後でも空の場合例外を送出
         if not years:
-            raise NoDateColumn(f"at {sta_link} ({sta_name})")
+            raise NoDateColumn(f"at ({sta_name})")
         return min(years)
-
-    def get_year_data(self, man_name, force=False):
-        # manicipalityの名前からスクレイピングして最も古い・新しい駅の設置年をとってくる.
-        # forceがTrueだと優先データを読み込むことをしない.
-        if not force and man_name in self.priority_data:
-            # 強制モードでなく優先データに指定された名前があるならそれを返して終わりにする.
-            if self.priority_data[man_name].get("nodata", False):
-                # nodata属性がTrueなら決められたデータを返す.
-                return {"sta_data": [], "max": ["なし", 0], "min": ["なし", 0]}
-            elif self.priority_data[man_name].get("data", None):
-                # 優先データが指定されているならそれを返す.
-                # ただし, クロールの段階では全部のデータが揃っていないと不可とする.
-                pri_data = self.priority_data[man_name]["data"]
-                pri_sta_data = pri_data.get("sta_data", None)
-                pri_max_data = pri_data.get("max", None)
-                pri_min_data = pri_data.get("min", None)
-                if pri_sta_data and pri_max_data and pri_min_data:
-                    return self.priority_data[man_name]["data"]
-                else:
-                    logger.warning(
-                        f"{man_name} : "
-                        "priority data exists, "
-                        "but not all attrs are available."
-                    )
-
-        years_data: Dict[str, int] = {}
-        # wikiに載っている駅データをとりあえずすべて取得
-        # 例外はcollector側で補足される.
-        sta_data: Dict[str, str] = self.get_station_links(man_name)
-
-        for sta_name, sta_link in sta_data.items():
-            try:
-                # 自治体名と駅ページの住所が合っていなければNoneが返ってくる.
-                # ちゃんとデータが返ってきているなら名前リストに追加し, 辞書に登録
-                if sta_year := self.get_opening_date(
-                    man_name, sta_name, "https://ja.wikipedia.org" + sta_link
-                ):
-                    years_data[sta_name] = sta_year
-                    print(f"{sta_name} : {years_data[sta_name]}年")
-                else:
-                    pass
-                    # logger.warning(f"{sta_name} is not in {man_name}")
-                    # error_storage.add(f"{sta_name} is not in {man_name}")
-            except CannotOpenURL as e:
-                logger.error(f"cannot open url : {e}")
-            except NoDateColumn as e:
-                logger.error(f"no date column in webpage : {e}")
-
-        if not years_data:
-            raise ElementNotFound(f"railroad section not found : {man_name}")
-        # max, minに辞書を入れるとキーが比較されるが,
-        # キーを引数として呼び出せるメソッドをkeyに指定するとそれで比較してくれる.
-        # max_year_name = max(years_data, key=years_data.get)
-        # min_year_name = min(years_data, key=years_data.get)
-        # cf: https://github.com/microsoft/pylance-release/issues/1022
-        max_year_name = max(years_data, key=lambda key: years_data.get(key, 0))
-        min_year_name = min(years_data, key=lambda key: years_data.get(key, 0))
-
-        return {
-            "sta_data": list(years_data.keys()),
-            "max": [max_year_name, years_data[max_year_name]],
-            "min": [min_year_name, years_data[min_year_name]],
-        }
