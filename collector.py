@@ -1,7 +1,6 @@
 from filemanager import StationData
 import traceback
 import re
-from itertools import product
 from typing import List, Dict, Final
 from bs4.element import Tag
 from bs4 import BeautifulSoup
@@ -67,7 +66,6 @@ class Collector:
         "請願",
         "貨物",
         "貨物ターミナル",
-        "",
     ]
 
     def __init__(self, config: dict) -> None:
@@ -156,20 +154,15 @@ class Collector:
             link_list = block.select("a:-soup-contains('駅'),a:-soup-contains('停留場')")
             for link in link_list:
                 sta_name = link.get_text()
-                is_proper_name: bool = True
-                # 取得したくないテキストのリストを生成して回す
-                for non_proper_text in [
-                    name_text + sta_text
-                    for name_text, sta_text in product(
-                        self.NON_PROPER_NAME, ["駅", "停留場"]
+                # 取得したくないテキストのリストを回して全てに対して問題なければ辞書に追加する.
+                if all(
+                    (
+                        (non_proper_text not in re.sub("駅|停留場", "", sta_name))
+                        and sta_name != "駅"
+                        and sta_name != "停留場"
                     )
-                ]:
-                    # 取得したくないテキストが駅名に含まれていたらフラグを下ろす
-                    if non_proper_text in sta_name:
-                        is_proper_name = False
-                        break
-                # フラグが立っているときだけ辞書に追加する.
-                if is_proper_name:
+                    for non_proper_text in self.NON_PROPER_NAME
+                ):
                     result_dict[sta_name] = link.attrs["href"]
         if not result_dict:
             raise ElementNotFound(f"railroad section not found : {man_name}")
@@ -267,11 +260,13 @@ class Collector:
                 logger.info(f"got data : {man_name} : {result}")
             except ThisAppException as e:
                 file_manager.save_raw_data(self.data)
-                error_storage.add(e, "e")
+                logger.error(e)
+                error_storage.add(e)
                 continue
             except Exception:
                 e = traceback.format_exc()
-                error_storage.add(e, "e")
+                error_storage.add(e)
+                logger.error(e)
                 file_manager.save_raw_data(self.data)
         self.crawler.close_browser()
 
