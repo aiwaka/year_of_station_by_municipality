@@ -142,30 +142,11 @@ class Crawler:
         return [text.replace("ケ", "ヶ") for text in result]
 
     def get_opening_date(
-        # self, man_name: str, sta_name: str, sta_link, soup: BeautifulSoup
         self,
-        man_name: str,
         sta_name: str,
         soup: BeautifulSoup,
     ) -> Union[int, None]:
         # 自治体名と駅名と駅リンクを受け取って開業年を返す.
-        # todo: 住所チェックは分離して, このメソッドを呼び出す前にcollector側でチェックするほうがよさそう.
-        # html = self.get_station_html(sta_name, sta_link)
-        # soup = BeautifulSoup(html, "html.parser")
-        # address_list = self.get_address_list(sta_name, html)
-        # address_list = self.get_address_list(sta_name, soup)
-        # if not address_list:
-        #     raise NoDateColumn(f"cannot find address data : {sta_name}")
-        # 住所がおかしいならNoneを返す.
-        # if not validate_man_name_and_address(man_name, address_list):
-        #     validation_failed_message: Final[str] = (
-        #         f"address of {sta_name} : "
-        #         f"{man_name}? {str(address_list)} "
-        #         "are correct according to data."
-        #     )
-        #     logger.warning(validation_failed_message)
-        #     error_storage.add(validation_failed_message)
-        #     return None
         # 開業年月日というテキストを持つthタグの隣のタグを持ってくる.
         date_header_tag_list = soup.select("th:-soup-contains('開業年月日')")
         # そのような部分がない場合は例外を投げる

@@ -144,7 +144,6 @@ class Collector:
                         )
                         break
         if warning_text:
-            # logger.warning(warning_text)
             error_storage.add(warning_text, "w")
 
         result_dict: Dict[str, str] = {}
@@ -195,9 +194,10 @@ class Collector:
                     ):
                         return pri_data
                     else:
-                        logger.warning(
+                        error_storage.add(
                             f"{man_name} : priority data exists, "
-                            "but not all attrs are available."
+                            "but not all attrs are available.",
+                            "w",
                         )
         years_data: Dict[str, int] = {}
         # wikiに載っている駅データをとりあえずすべて取得
@@ -219,7 +219,7 @@ class Collector:
             if not validate_man_name_and_address(man_name, address_list):
                 address_error_stations.append(sta_name)
                 continue
-            if sta_year := self.crawler.get_opening_date(man_name, sta_name, soup):
+            if sta_year := self.crawler.get_opening_date(sta_name, soup):
                 years_data[sta_name] = sta_year
                 print(f"{sta_name} : {years_data[sta_name]}年")
 
@@ -266,13 +266,11 @@ class Collector:
                 self.data[man_name] = result
                 logger.info(f"got data : {man_name} : {result}")
             except ThisAppException as e:
-                # logger.error(e)
                 file_manager.save_raw_data(self.data)
                 error_storage.add(e, "e")
                 continue
             except Exception:
                 e = traceback.format_exc()
-                # logger.error(e)
                 error_storage.add(e, "e")
                 file_manager.save_raw_data(self.data)
         self.crawler.close_browser()
