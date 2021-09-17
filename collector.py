@@ -8,7 +8,7 @@ from crawl import Crawler
 from filemanager import file_manager
 from error_storage import error_storage
 from logzero import logger
-from appexcp.my_exception import NoDateColumn, ElementNotFound, ThisAppException
+from appexcp.my_exception import ElementNotFound, ThisAppException
 
 
 def validate_man_name_and_address(man_name: str, address_list: list[str]) -> bool:
@@ -61,6 +61,7 @@ class Collector:
     NON_PROPER_NAME: Final[List[str]] = [
         "旅客",
         "鉄道",
+        "無人",
         "休止",
         "臨時",
         "請願",
@@ -160,6 +161,7 @@ class Collector:
                         (non_proper_text not in re.sub("駅|停留場", "", sta_name))
                         and sta_name != "駅"
                         and sta_name != "停留場"
+                        and sta_name != "駅長"
                     )
                     for non_proper_text in self.NON_PROPER_NAME
                 ):
@@ -203,11 +205,20 @@ class Collector:
                 sta_name, "https://ja.wikipedia.org" + sta_link
             )
             soup: BeautifulSoup = BeautifulSoup(html, "html.parser")
-            address_list: List[str] = self.crawler.get_address_list(
-                sta_name, self.address_data, soup
-            )
-            if not address_list:
-                raise NoDateColumn(f"cannot find address data : {sta_name}")
+            if not (
+                address_list := self.crawler.get_address_list(
+                    sta_name, self.address_data, soup
+                )
+            ):
+                # raise NoDateColumn(
+                #     f"{man_name} : cannot find address data : {sta_name}"
+                # )
+                error_message: Final[
+                    str
+                ] = f"{man_name} : cannot find address data : {sta_name}"
+                error_storage.add(error_message)
+                logger.error(error_message)
+                continue
             # 住所チェックしてだめならこの駅を飛ばす
             if not validate_man_name_and_address(man_name, address_list):
                 address_error_stations.append(sta_name)

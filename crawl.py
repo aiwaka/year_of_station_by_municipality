@@ -13,7 +13,6 @@ from appexcp.my_exception import (
     NonWikipediaLink,
     CannotOpenURL,
     NoDateColumn,
-    # ThisAppException,
 )
 
 # from error_storage import error_storage
