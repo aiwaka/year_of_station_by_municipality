@@ -75,6 +75,7 @@ class Collector:
         "BRT",
         "鉄道と駅",
         "鉄道・ケーブルカー・ロープウェイ",
+        "鉄道路線・駅",
     ]
     ABANDONED_LINE_TEXT: Final[List[str]] = [
         "廃線",
@@ -148,7 +149,6 @@ class Collector:
             )
         if not base_tags:
             # それでもだめなら例外
-            # raise ElementNotFound(f"railroad section not found : {man_name}")
             raise ElementNotFound(man_name)
         railroad_blocks: list[Tag] = []
         for base_tag in base_tags:
@@ -212,7 +212,6 @@ class Collector:
                 ):
                     result_dict[sta_name] = link.attrs["href"]
         if not result_dict:
-            # raise ElementNotFound(f"railroad section not found : {man_name}")
             raise ElementNotFound(man_name)
         return result_dict
 
@@ -270,9 +269,6 @@ class Collector:
                     sta_name, self.address_data, soup
                 )
             ):
-                # raise NoDateColumn(
-                #     f"{man_name} : cannot find address data : {sta_name}"
-                # )
                 error_message: Final[
                     str
                 ] = f"{man_name} : cannot find address data : {sta_name}"
@@ -296,7 +292,6 @@ class Collector:
             )
             error_storage.add(str(address_error_stations), "w")
         if not years_data:
-            # raise ElementNotFound(f"railroad section not found : {man_name}")
             raise NoDateInfo(man_name)
 
         max_year_name = max(years_data, key=lambda key: years_data.get(key, 0))

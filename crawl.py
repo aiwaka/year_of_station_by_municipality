@@ -68,9 +68,6 @@ class Crawler:
         link: str = search_result[0].find_element_by_tag_name("a").get_attribute("href")
         if "ja.wikipedia.org" not in link:
             # wikipediaのサイトではなかったら例外を送る
-            # raise NonWikipediaLink(
-            #     "link is not wikipedia : " + link + " [" + man_name + "]"
-            # )
             raise NonWikipediaLink(man_name, link)
         return link
 
