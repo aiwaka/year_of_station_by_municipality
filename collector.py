@@ -16,7 +16,6 @@ def validate_man_name_and_address(man_name: str, address_list: list[str]) -> boo
     # これで（都道府県または政令市）（市区町村または政令市区）に分けることができる.
     pattern = re.compile(r"(さいたま市|堺市|...??[都道府県市])(.+?[市区町村])")
     # （市区町村または政令市区）を取得
-    # partial_name = pattern.search(man_name).groups()[1]
     partial_name = match.groups()[1] if (match := pattern.search(man_name)) else None
     if not partial_name:
         raise ThisAppException(f"cannot find pattern from man_name({man_name}).")
@@ -83,15 +82,13 @@ class Collector:
         self.address_data: Dict[str, List[str]] = file_manager.load_address_dict()
 
     def get_station_links(self, man_name: str) -> Dict[str, str]:
-        # 自治体名からそこに属する駅のリンクのリストを持ってくる.
-        # {"駅名": "リンク"}の辞書で返す.
+        # 自治体名からそこに属する駅のリンクのリストを持ってくる. {"駅名": "リンク"}の辞書で返す.
         html = self.crawler.get_source(man_name)
         soup = BeautifulSoup(html, "html.parser")
 
         # まずh3タグで検索
         base_tag_name: str = "h3"
         base_tags = soup.select(
-            # ",".join(map(lambda text: f"h3:has( > span#{text})", RAILWAY_TAG_ID))
             ",".join([f"h3:has( > span#{text})" for text in self.RAILWAY_TAG_ID])
         )
         if not base_tags:
@@ -102,7 +99,8 @@ class Collector:
             )
         if not base_tags:
             # それでもだめなら例外
-            raise ElementNotFound(f"railroad section not found : {man_name}")
+            # raise ElementNotFound(f"railroad section not found : {man_name}")
+            raise ElementNotFound(man_name)
         railroad_blocks: list[Tag] = []
         for base_tag in base_tags:
             next_tag = base_tag.find_next_sibling()
@@ -146,8 +144,6 @@ class Collector:
             error_storage.add(warning_text, "w")
 
         result_dict: Dict[str, str] = {}
-        # station_name_pattern = re.compile(r"(?<!旅客|鉄道|休止|臨時|請願)(駅|停留場)$")
-
         # 取ってきたタグの中で駅や停留所を探して順番に検査する.
         for block in railroad_blocks:
             # どうせ住所チェックするので, 駅を含むリンクすべて取ってくることにする.
@@ -167,7 +163,8 @@ class Collector:
                 ):
                     result_dict[sta_name] = link.attrs["href"]
         if not result_dict:
-            raise ElementNotFound(f"railroad section not found : {man_name}")
+            # raise ElementNotFound(f"railroad section not found : {man_name}")
+            raise ElementNotFound(man_name)
         return result_dict
 
     def get_year_data(self, man_name: str, force: bool = False) -> StationData:
@@ -181,7 +178,6 @@ class Collector:
                 elif pri_data := man_pri_data.get("data", None):
                     # 優先データが指定されているならそれを返す.
                     # ただし, クロールの段階では全部のデータが揃っていないと不可とする.
-
                     if (
                         pri_data.get("sta_data", None)
                         and pri_data.get("max", None)
@@ -200,6 +196,9 @@ class Collector:
         # 住所チェック失敗した駅を登録しておくためのリスト
         address_error_stations: List[str] = []
         for sta_name, sta_link in sta_link_data.items():
+            # wikiへのリンクではないならもう飛ばす
+            if "/wiki/" not in sta_link:
+                continue
             # 順番に開業年をチェックしていく. このときに住所チェックも行う.
             html: str = self.crawler.get_station_html(
                 sta_name, "https://ja.wikipedia.org" + sta_link
@@ -223,9 +222,12 @@ class Collector:
             if not validate_man_name_and_address(man_name, address_list):
                 address_error_stations.append(sta_name)
                 continue
-            if sta_year := self.crawler.get_opening_date(sta_name, soup):
+            if sta_year := self.crawler.get_opening_date(soup):
                 years_data[sta_name] = sta_year
                 print(f"{sta_name} : {years_data[sta_name]}年")
+            else:
+                logger.warning(f"no date column ({sta_name})")
+                error_storage.add(f"no date column ({sta_name})")
 
         if address_error_stations:
             error_storage.add(
@@ -233,7 +235,8 @@ class Collector:
             )
             error_storage.add(str(address_error_stations), "w")
         if not years_data:
-            raise ElementNotFound(f"railroad section not found : {man_name}")
+            # raise ElementNotFound(f"railroad section not found : {man_name}")
+            raise ElementNotFound(man_name)
 
         max_year_name = max(years_data, key=lambda key: years_data.get(key, 0))
         min_year_name = min(years_data, key=lambda key: years_data.get(key, 0))

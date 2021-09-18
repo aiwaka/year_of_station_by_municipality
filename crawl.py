@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from appexcp.my_exception import (
     NonWikipediaLink,
     CannotOpenURL,
-    NoDateColumn,
+    # NoDateColumn,
 )
 
 # from error_storage import error_storage
@@ -20,13 +20,13 @@ from filemanager import file_manager
 
 
 class Crawler:
-    def __init__(self):
+    def __init__(self) -> None:
         # 優先データを辞書として持っておく.
         # URLが見つけられない場合のURLや, データが誤りのときのデータなどを手動で書いておく.
         self.priority_data: Dict[str, Any] = file_manager.load_priority_data()
         # self.address_data: Dict[str, List[str]] = file_manager.load_address_dict()
 
-    def open_browser(self):
+    def open_browser(self) -> None:
         # ブラウザーを起動. すでに起動しているならなにもしない.
         if not hasattr(self, "driver"):
             options = Options()
@@ -34,15 +34,20 @@ class Crawler:
             # options.add_argument("incognito")  # シークレットモード
             self.driver = webdriver.Chrome(options=options)
 
-    def close_browser(self):
+    def close_browser(self) -> None:
         # デストラクタでquitしようとするとエラーで落ちるのでこのようにしている.
         # 必ず最後にこれを呼ぶ
         if hasattr(self, "driver"):
             self.driver.quit()
 
-    def get_wiki_link(self, man_name) -> str:
+    def get_wiki_link(self, man_name: str) -> str:
         # seleniumでchromeを操作して検索結果のリンクを取ってくる
         # 与えられた自治体名 + wikipediaで検索する.
+        # エラーを見つけたら手動で優先データに追加しておく.
+        self.open_browser()
+        if self.priority_data.get(man_name, {}).get("url", None):
+            link: str = self.priority_data[man_name]["url"]
+            return link
         self.driver.get(f"https://www.google.com/search?q={quote(man_name)}+wikipedia")
         sleep(2)  # 待機
         # 検索結果のブロックはgクラスがつけられている.
@@ -87,18 +92,13 @@ class Crawler:
         html = file_manager.load_local_html(man_name)
         if html is None:
             # ソースのhtmlが存在しなければ取ってきて保存し, あるならそれを使う.
-            self.open_browser()
             link = self.get_wiki_link(man_name)
             if "ja.wikipedia.org" not in link:
-                # wikipediaのサイトではなかったら, 優先データを見に行く.
-                # エラーを見つけたら手動で優先データに追加しておく.
-                if self.priority_data.get(man_name, {}).get("url", None):
-                    link = self.priority_data[man_name]["url"]
-                else:
-                    # それでもみつからなかったら例外を送る
-                    raise NonWikipediaLink(
-                        "link is not wikipedia : " + link + " [" + man_name + "]"
-                    )
+                # wikipediaのサイトではなかったら例外を送る
+                # raise NonWikipediaLink(
+                #     "link is not wikipedia : " + link + " [" + man_name + "]"
+                # )
+                raise NonWikipediaLink(man_name, link)
             logger.info(f"{man_name} : source not exists. fetching from {link}")
             self.driver.get(link)
             sleep(1)
@@ -115,7 +115,7 @@ class Crawler:
         try:
             with urlopen(sta_link) as response:
                 html: str = response.read()
-                sleep(3)
+                sleep(2.8)
         except Exception as e:
             print(e)
             raise CannotOpenURL(f"cannot open URL : {sta_link} ({sta_name})")
@@ -142,7 +142,6 @@ class Crawler:
 
     def get_opening_date(
         self,
-        sta_name: str,
         soup: BeautifulSoup,
     ) -> Union[int, None]:
         # 自治体名と駅名と駅リンクを受け取って開業年を返す.
@@ -150,7 +149,7 @@ class Crawler:
         date_header_tag_list = soup.select("th:-soup-contains('開業年月日')")
         # そのような部分がない場合は例外を投げる
         if not date_header_tag_list:
-            raise NoDateColumn(f"no date column : at ({sta_name})")
+            return None
         # 正規表現で年を抜き出して整数にしてリストに格納
         year_pattern = re.compile(r"([0-9]{4})年")
         years: List[int] = []
@@ -164,5 +163,5 @@ class Crawler:
         # ->ここは最小にしておく（最近wikiページでの別枠ができることは少ないだろうので）
         # 最後でも空の場合例外を送出
         if not years:
-            raise NoDateColumn(f"no date column : at ({sta_name})")
+            return None
         return min(years)
