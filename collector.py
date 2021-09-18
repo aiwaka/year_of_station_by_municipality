@@ -1,3 +1,9 @@
+"""データ収集
+
+駅データを収集・整理する.
+
+"""
+
 from filemanager import StationData
 import traceback
 import re
@@ -8,27 +14,60 @@ from crawl import Crawler
 from filemanager import file_manager
 from error_storage import error_storage
 from logzero import logger
-from appexcp.my_exception import ElementNotFound, ThisAppException
+from appexcp.my_exception import ElementNotFound, NoDateInfo, ThisAppException
 
 
-def validate_man_name_and_address(man_name: str, address_list: list[str]) -> bool:
-    # （MANDARA10の）自治体名と住所が一致しているか返す
+def validate_man_name_and_address(man_name: str, address_list: List[str]) -> bool:
+    """自治体名と住所の整合性チェック
+
+    （MANDARA10の）自治体名と住所が一致しているか返す.
+
+    Args:
+        man_name (str): 自治体名. （[都道府県][自治体名]）または（[政令市][政令市区]）または（[東京都][特別区]）の形.
+        address_list (List[str]): 住所リスト. 住所文字列を任意の個数リストに入れたもの.
+
+    Returns:
+        bool: Trueなら一つでも引っかかるものがある. Falseならすべて整合していない.
+
+    Raises:
+        ThisAppException: 入力された自治体名が形式に沿っていない場合発生.
+    """
     # これで（都道府県または政令市）（市区町村または政令市区）に分けることができる.
     pattern = re.compile(r"(さいたま市|堺市|...??[都道府県市])(.+?[市区町村])")
     # （市区町村または政令市区）を取得
     partial_name = match.groups()[1] if (match := pattern.search(man_name)) else None
     if not partial_name:
         raise ThisAppException(f"cannot find pattern from man_name({man_name}).")
-    result = False
-    for address in address_list:
-        # 住所のリストにその名前が入っていればOKとする.
-        if partial_name in address:
-            result = True
-    return result
+    return any([partial_name in address for address in address_list])
+    # result = False
+    # for address in address_list:
+    #     # 住所のリストにその名前が入っていればOKとする.
+    #     if partial_name in address:
+    #         result = True
+    # return result
 
 
 class Collector:
-    # 鉄道のことが記載されている見出しの名前リスト
+    """データ収集クラス
+
+    自治体名から駅データを集めてくる本体クラス.
+
+    Attributes:
+        RAILWAY_TAG_ID (List[str]): 鉄道のことが記載されているWikiの見出しの名前のリスト.
+        ABANDONED_LINE_TEXT (List[str]): 廃線として記載されている可能性がある言葉のリスト.
+        NON_PROPER_NAME (List[str]): リンクとして考えられるが駅名ではないものをリストにしておく.
+        crawler (Cralwer): ウェブから情報を持ってくるためのクローラ.
+        man_list (List[str]): 自治体名リスト.
+        START_INDEX ((constant) int): 検索し始める番号.
+        END_INDEX ((constant) int): この番号まで検索.
+        data (Dict[str, StationData]): 自治体名に対する駅データを保存する. ローデータもこれに直接読み込む.
+        priority_data (Dict[str, Dict[str, Any]]): 優先データ. キーは自治体名.
+        address_data (Dict[str, List[str]]): 住所録. 自治体名に対して住所のリストが保存される.
+
+    Args:
+        config (dict, optional): START_INDEX, GET_NUM属性をもたせた辞書を渡す.
+    """
+
     RAILWAY_TAG_ID: Final[List[str]] = [
         "鉄道",
         "鉄道路線",
@@ -37,7 +76,6 @@ class Collector:
         "鉄道と駅",
         "鉄道・ケーブルカー・ロープウェイ",
     ]
-    # 廃線として記載されている可能性がある言葉のリスト
     ABANDONED_LINE_TEXT: Final[List[str]] = [
         "廃線",
         "廃止路線",
@@ -56,7 +94,6 @@ class Collector:
         "過去に存在した路線",
         "過去に存在した鉄道路線",
     ]
-    # リンクとして考えられるが固有名詞ではないものをリストにしておく.
     NON_PROPER_NAME: Final[List[str]] = [
         "旅客",
         "鉄道",
@@ -68,7 +105,7 @@ class Collector:
         "貨物ターミナル",
     ]
 
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict = {}) -> None:
         self.crawler = Crawler()
         # 自治体名リストを取得.
         self.man_list: List[str] = file_manager.load_manicipalities_data()
@@ -82,7 +119,19 @@ class Collector:
         self.address_data: Dict[str, List[str]] = file_manager.load_address_dict()
 
     def get_station_links(self, man_name: str) -> Dict[str, str]:
-        # 自治体名からそこに属する駅のリンクのリストを持ってくる. {"駅名": "リンク"}の辞書で返す.
+        """駅リンクのリストを取得
+
+        自治体名からそこに属する駅のリンクのリストを持ってくる. このとき住所チェックはしない.
+
+        Args:
+            man_name (str): 自治体名.
+
+        Returns:
+            Dict[str, str]: 駅名がキー, リンクが値の辞書を返す.
+
+        Raises:
+            ElementNotFound: 鉄道駅のリンクを取得できなかった場合に発生.
+        """
         html = self.crawler.get_source(man_name)
         soup = BeautifulSoup(html, "html.parser")
 
@@ -168,8 +217,20 @@ class Collector:
         return result_dict
 
     def get_year_data(self, man_name: str, force: bool = False) -> StationData:
-        # manicipalityの名前からスクレイピングして最も古い・新しい駅の設置年をとってくる.
-        # forceがTrueだと優先データを読み込むことをしない.
+        """駅設置年データを取得.
+
+        自治体名に対して駅一覧と, 最近・最古の駅設置年のデータを返す.
+
+        Args:
+            man_name (str): 自治体名.
+            force (bool, optional): 本来一度取得した自治体はスキップするが, そうせずにもう一度クロールから行うフラグ.
+
+        Returns:
+            StationData: sta_data, max, minを含む辞書を返す.
+
+        Raises:
+            NoDateInfo: 年データが取れなかった場合に発生.
+        """
         if not force:
             if man_pri_data := self.priority_data.get(man_name, None):
                 if man_pri_data.get("nodata", False):
@@ -236,7 +297,7 @@ class Collector:
             error_storage.add(str(address_error_stations), "w")
         if not years_data:
             # raise ElementNotFound(f"railroad section not found : {man_name}")
-            raise ElementNotFound(man_name)
+            raise NoDateInfo(man_name)
 
         max_year_name = max(years_data, key=lambda key: years_data.get(key, 0))
         min_year_name = min(years_data, key=lambda key: years_data.get(key, 0))
@@ -248,7 +309,10 @@ class Collector:
         }
 
     def run(self) -> None:
-        # 自治体リストを回してクローラに入れて結果を求める.
+        """実行
+
+        自治体リストを回してクローラに入れて結果を求める.
+        """
         for man_name in self.man_list[self.START_INDEX : self.END_INDEX]:  # noqa: E203
             if man_name in self.data:
                 # データにすでにあるとき, 優先データで置き換えるか単純に飛ばす
@@ -285,6 +349,7 @@ class Collector:
         self.crawler.close_browser()
 
     def save(self) -> None:
+        """実行結果をファイルに保存"""
         file_manager.save_raw_data(self.data)
         file_manager.output_csv(self.data)
         logger.info("summary:")
