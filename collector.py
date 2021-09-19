@@ -71,6 +71,7 @@ class Collector:
     RAILWAY_TAG_ID: Final[List[str]] = [
         "鉄道",
         "鉄道路線",
+        "鉄道・軌道",
         "鉄道・索道",
         "BRT",
         "鉄道と駅",
@@ -80,6 +81,8 @@ class Collector:
     ABANDONED_LINE_TEXT: Final[List[str]] = [
         "廃線",
         "廃止路線",
+        "廃止鉄道路線",
+        "廃止鉄道線",
         "廃止された路線",
         "廃止された鉄道",
         "廃止された鉄道路線",
@@ -148,6 +151,12 @@ class Collector:
                 ",".join([f"h4:has( > span#{text})" for text in self.RAILWAY_TAG_ID])
             )
         if not base_tags:
+            # 現状高松市のみだがh2でも検索
+            base_tag_name = "h2"
+            base_tags = soup.select(
+                ",".join([f"h2:has( > span#{text})" for text in self.RAILWAY_TAG_ID])
+            )
+        if not base_tags:
             # それでもだめなら例外
             raise ElementNotFound(man_name)
         railroad_blocks: list[Tag] = []
@@ -203,10 +212,10 @@ class Collector:
                 # 取得したくないテキストのリストを回して全てに対して問題なければ辞書に追加する.
                 if all(
                     (
-                        (non_proper_text not in re.sub("駅|停留場", "", sta_name))
+                        sta_name.endswith(("駅", "停留場"))
+                        and (non_proper_text not in re.sub("駅|停留場", "", sta_name))
                         and sta_name != "駅"
                         and sta_name != "停留場"
-                        and sta_name != "駅長"
                     )
                     for non_proper_text in self.NON_PROPER_NAME
                 ):
