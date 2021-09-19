@@ -39,12 +39,6 @@ def validate_man_name_and_address(man_name: str, address_list: List[str]) -> boo
     if not partial_name:
         raise ThisAppException(f"cannot find pattern from man_name({man_name}).")
     return any([partial_name in address for address in address_list])
-    # result = False
-    # for address in address_list:
-    #     # 住所のリストにその名前が入っていればOKとする.
-    #     if partial_name in address:
-    #         result = True
-    # return result
 
 
 class Collector:
@@ -60,7 +54,7 @@ class Collector:
         man_list (List[str]): 自治体名リスト.
         START_INDEX ((constant) int): 検索し始める番号.
         END_INDEX ((constant) int): この番号まで検索.
-        data (Dict[str, StationData]): 自治体名に対する駅データを保存する. ローデータもこれに直接読み込む.
+        data (Dict[str, StationData]): 自治体名に対する駅データを保存する. ローデータを最初に読み込む.
         priority_data (Dict[str, Dict[str, Any]]): 優先データ. キーは自治体名.
         address_data (Dict[str, List[str]]): 住所録. 自治体名に対して住所のリストが保存される.
 
@@ -319,7 +313,7 @@ class Collector:
         """
         for man_name in self.man_list[self.START_INDEX : self.END_INDEX]:  # noqa: E203
             if man_name in self.data:
-                # データにすでにあるとき, 優先データで置き換えるか単純に飛ばす
+                # 既存データにすでにあるとき, 優先データで置き換えるか単純に飛ばす
                 if pri_data := self.priority_data.get(man_name, {}).get("data", None):
                     # 優先データが指定されているならそれで置き換える.
                     # sta_data, max, minそれぞれについて個別に見る.
